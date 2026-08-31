@@ -1,0 +1,312 @@
+#!/usr/bin/env node
+
+// xyOps CLI
+// See: https://github.com/pixlcore/xyops
+// Copyright (c) 2019 - 2026 PixlCore LLC, BSD 3-Clause License
+
+// Config Keys: api_key, base_url, temp_dir, color, suggest, items_per_page
+
+const fs = require('fs');
+const os = require('os');
+const cp = require('child_process');
+const Path = require('path');
+const cli = require('pixl-cli');
+const { api } = require('@pixlcore/xyops-sdk');
+const pkg = require('./package.json');
+
+cli.global();
+
+cli.mapArgs({
+	'v': 'verbose',
+	'q': 'quiet',
+	'd': 'debug',
+	'f': 'format',
+	'r': 'raw',
+	'i': 'invisible',
+	'h': 'help'
+});
+
+var highlight = require('cli-highlight').highlight;
+const Tools = cli.Tools;
+const chalk = cli.chalk;
+
+// coerce true/false into booleans
+for (var key in cli.args) {
+	if (cli.args[key] === 'true') cli.args[key] = true;
+	else if (cli.args[key] === 'false') cli.args[key] = false;
+}
+
+// make our own copy of cli.args
+var args = Object.assign( {}, cli.args );
+
+if (!args.other || !args.other.length) args.other = ['dashboard'];
+else if (args.help) args.other = ['help'];
+
+var cmd = args.other.shift().toLowerCase();
+
+const app = {
+	
+	epoch: Tools.timeNow(),
+	
+	colors: {
+		"theme": [55, 145, 245],
+		"gray": [127, 127, 127],
+		
+		"red": [251, 44, 54],
+		"fire": [255, 77, 7],
+		"orange": [255, 105, 0],
+		"tangerine": [255, 130, 0],
+		"amber": [254, 154, 0],
+		"gold": [248, 165, 0],
+		"yellow": [240, 177, 0],
+		"lemon": [198, 191, 0],
+		"lime": [124, 207, 0],
+		"grass": [74, 204, 38],
+		"green": [0, 201, 80],
+		"mint": [0, 195, 106],
+		"emerald": [0, 188, 125],
+		"aqua": [0, 188, 148],
+		"teal": [0, 187, 167],
+		"turquoise": [0, 187, 195],
+		"cyan": [0, 184, 219],
+		"ice": [0, 176, 232],
+		"sky": [0, 166, 244],
+		"azure": [0, 148, 254],
+		"blue": [43, 127, 255],
+		"sapphire": [75, 111, 255],
+		"indigo": [97, 95, 255],
+		"lavender": [120, 88, 255],
+		"violet": [142, 81, 255],
+		"orchid": [158, 76, 255],
+		"purple": [173, 70, 255],
+		"magenta": [199, 59, 255],
+		"fuchsia": [225, 42, 251],
+		"hotpink": [241, 43, 201],
+		"pink": [246, 51, 154],
+		"blush": [252, 40, 122],
+		"rose": [255, 32, 86]
+	},
+	
+	condition_colors: {
+		'start': 'sky',
+		'complete': 'emerald',
+		'continue': 'gray',
+		'success': 'green',
+		'error': 'red',
+		'user': 'orange',
+		'warning': 'yellow',
+		'critical': 'purple',
+		'abort': 'gray'
+	},
+	
+	events: [],
+	categories: [],
+	groups: [],
+	plugins: [],
+	tags: [],
+	
+	activeJobs: {},
+	activeAlerts: {},
+	internalJobs: {},
+	servers: {},
+	serverCache: {},
+	state: {},
+	stats: {},
+	
+	lastMonthDayCache: {},
+	
+	async run() {
+		// main entry point
+		var self = this;
+		
+		this.loadConfig();
+		
+		this.version = pkg.version;
+		this.args = args;
+		this.api = api;
+		this.cli = cli;
+		this.highlight = highlight;
+		
+		this.debug = args.debug;
+		this.verbose = args.verbose;
+		this.quiet = args.quiet;
+		
+		// process global common args
+		this.format = args.format || '';
+		delete args.format;
+		
+		this.raw = args.raw || this.config.raw || false;
+		delete args.raw;
+		
+		this.invisible = args.invisible || this.config.invisible || false;
+		delete args.invisible;
+		
+		this.dry = args.dry || false;
+		delete args.dry;
+		
+		// optionally disable all ANSI color
+		if ((("color" in this.config) && !this.config.color) || (('color' in args) && !args.color)) {
+			cli.chalk.enabled = false;
+			highlight = this.highlight = function(text) { return text; };
+		}
+		
+		println( "\n " + cli.emoji('🚀') + " " + this.color('theme').bold("xyOps CLI ") + gray("v" + this.version) );
+		
+		// call config cmd early (before contacting xyops)
+		if (cmd == 'config') {
+			await this['cmd_' + cmd]();
+			print("\n");
+			return;
+		}
+		
+		delete args.debug;
+		delete args.echo;
+		delete args.color;
+		delete args.quiet;
+		delete args.verbose;
+		
+		// create temp dir if needed
+		this.tempDir = this.config.temp_dir || Path.join( os.tmpdir(), 'xyops', 'cli' );
+		if (!fs.existsSync(this.tempDir)) Tools.mkdirpSync( this.tempDir );
+		
+		if (!this.config.api_key) {
+			this.die("Missing xyOps API Key.  Set an 'api_key' property in " + this.configFiles.join(', or ') + ", or set a 'XYOPS_API_KEY' environment variable.");
+		}
+		if (!this.config.base_url) {
+			this.die("Missing xyOps Base URL.  Set a 'base_url' property in " + this.configFiles.join(', or ') + ", or set a 'XYOPS_BASE_URL' environment variable.");
+		}
+		
+		println( ' ' + gray(this.config.base_url) );
+		
+		// optionally read STDIN into a named arg (use curl @- convention)
+		var stdin_arg_key = null;
+		for (var key in args) {
+			if (args[key] === '@-') { stdin_arg_key = key; break; }
+		}
+		if (stdin_arg_key) {
+			verboseln("Reading STDIN into: " + stdin_arg_key);
+			const chunks = [];
+			for await (const chunk of process.stdin) chunks.push(chunk);
+			args[stdin_arg_key] = chunks.join('');
+			
+			// parse if input looks json-ish
+			if (args[stdin_arg_key].trim().match(/^\{[\s\S]*\}$/) || args[stdin_arg_key].trim().match(/^\[[\s\S]*\]$/)) {
+				try { args[stdin_arg_key] = JSON.parse(args[stdin_arg_key]); }
+				catch (err) { this.die("Failed to parse JSON from STDIN: " + err); }
+			}
+		}
+		
+		// optionally read any file into any arg (use curl @FILE convention)
+		for (var key in args) {
+			if (String(args[key]).match(/^@(.+)$/)) {
+				var file = RegExp.$1;
+				if (!fs.existsSync(file)) this.die("File not found: " + file);
+				if (file.match(/\.json$/i)) args[key] = JSON.parse( fs.readFileSync(file, 'utf8') );
+				else args[key] = fs.readFileSync(file, 'utf8');
+			}
+		}
+		
+		// allow args to be dot.path.syntax
+		for (var key in args) {
+			if (key.match(/\./)) {
+				Tools.setPath( args, key, args[key] );
+				delete args[key];
+			}
+		}
+		
+		if (!this['cmd_' + cmd]) {
+			// allow user to swap first two args, if 2nd is known command
+			if (this['cmd_' + args.other[0]]) {
+				var new_cmd = args.other[0];
+				args.other[0] = cmd;
+				cmd = new_cmd;
+			}
+			else this.die("Unknown command: " + cmd, "Available Commands: help, events\n\n");
+		}
+		
+		// merge in config from xyops
+		await this.cacheConfig();
+		
+		// global pagination args
+		this.offset = this.args.offset || 0;
+		delete this.args.offset;
+		
+		this.limit = this.args.limit || this.config.items_per_page;
+		delete this.args.limit;
+		
+		if (this.args.page) {
+			this.offset = (this.args.page - 1) * this.limit;
+			delete this.args.page;
+		}
+		
+		// go go go
+		await this['cmd_' + cmd]();
+		
+		// always end with empty line
+		print("\n");
+	},
+	
+	async cmd_repl() {
+		// open repl for user to debug
+		await this.getMultiple();
+		
+		print("\n");
+		var repl = this.repl = require('repl').start({ prompt: '> ', useGlobal: true, ignoreUndefined: true });
+		
+		repl.context.app = this;
+		repl.context.config = this.config;
+		repl.context.cli = cli;
+		repl.context.Tools = Tools;
+		repl.context.xy = this;
+		
+		await new Promise((resolve) => {
+			repl.once('exit', () => {
+				delete app.repl;
+				resolve();
+			});
+		});
+	},
+	
+	async cmd_help() {
+		// TODO: this
+	},
+	
+	die(msg, extra = "") {
+		// colorful die
+		cli.progress.end();
+		if (typeof(msg) == 'object') {
+			print("\n");
+			console.error(msg);
+			if (msg.message) msg = msg.message;
+		}
+		die( "\n❌ " + red.bold("ERROR: ") + yellow.bold(msg) + "\n\n" + extra );
+	},
+	
+	usage(text) {
+		if (CMD_HELP_TEXT[text]) text = CMD_HELP_TEXT[text];
+		return yellow.bold("Usage: ") + green(text.trim()) + "\n\n";
+	},
+	
+	dieUsage(text) {
+		die( "\n" + this.usage(text) );
+	},
+	
+	success(msg) {
+		// print colorful success message
+		msg = this.markdown(msg);
+		print( "\n✅ " + green.bold("Success: ") + green(msg) + "\n" );
+	}
+	
+};
+
+Tools.mergeHashInto( app, require('./lib/utils.js') );
+Tools.mergeHashInto( app, require('./lib/config.js') );
+Tools.mergeHashInto( app, require('./lib/dashboard.js') );
+Tools.mergeHashInto( app, require('./lib/events.js') );
+Tools.mergeHashInto( app, require('./lib/jobs.js') );
+
+global.app = app;
+
+app.run().catch( function(err) {
+	app.die(err);
+} );
