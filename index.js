@@ -267,6 +267,23 @@ const app = {
 		});
 	},
 	
+	async cmd_api() {
+		// perform arbitrary xyops api call
+		var name = this.args.other.shift();
+		delete this.args.other;
+		
+		println( "\n " + this.color('theme').bold("Calling API: " + name) );
+		
+		print( "\n " + cyan.bold("Request:") );
+		this.jsonOutput(this.args);
+		
+		var { err, data } = await this.api[name](this.args);
+		if (err) this.die(err);
+		
+		print( "\n " + cyan.bold("Response:") );
+		this.jsonOutput(data);
+	},
+	
 	async cmd_help() {
 		// TODO: this
 	},
