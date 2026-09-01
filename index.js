@@ -206,6 +206,13 @@ const app = {
 			}
 		}
 		
+		// if 'json' arg is present and an object, merge into top-level
+		// (so user can pipe entire request in from STDIN or file)
+		if (args.json && (typeof(args.json) == 'object')) {
+			Tools.mergeHashInto( args, args.json );
+			delete args.json;
+		}
+		
 		// allow args to be dot.path.syntax
 		for (var key in args) {
 			if (key.match(/\./)) {
@@ -221,22 +228,22 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, events\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, events\n\n"); // TODO: this
 		}
 		
 		// merge in config from xyops
 		await this.cacheConfig();
 		
 		// global pagination args
-		this.offset = this.args.offset || 0;
-		delete this.args.offset;
+		this.offset = args.offset || 0;
+		delete args.offset;
 		
-		this.limit = this.args.limit || this.config.items_per_page;
-		delete this.args.limit;
+		this.limit = args.limit || this.config.items_per_page;
+		delete args.limit;
 		
-		if (this.args.page) {
-			this.offset = (this.args.page - 1) * this.limit;
-			delete this.args.page;
+		if (args.page) {
+			this.offset = (args.page - 1) * this.limit;
+			delete args.page;
 		}
 		
 		// go go go
