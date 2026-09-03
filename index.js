@@ -294,7 +294,7 @@ const app = {
 	async cmd_api() {
 		// perform arbitrary xyops api call
 		// e.g. "xy api getEvents"
-		var name = this.args.other.shift();
+		var name = this.args.other.shift() || this.dieUsage('api');
 		delete this.args.other;
 		
 		this.mergeDotArgs( this.args, this.args );
@@ -319,7 +319,25 @@ const app = {
 	},
 	
 	async cmd_help() {
-		// TODO: this
+		// show help section
+		var heading = this.args.other.join(' ') || 'help';
+		this.printHelp(heading);
+	},
+	
+	printHelp(heading) {
+		// print named section from help file
+		var md = fs.readFileSync(Path.join(__dirname, 'docs', 'help.md'), 'utf8').trim() + "\n\n# end sentinel\n";
+		var re = new RegExp( "(^|\\n)(\\#+)\\s+(" + Tools.escapeRegExp(heading) + ")\\n([\\s\\S]*?)\\n\#+\\s+" );
+		var matches = md.match(re);
+		if (!matches) this.die("Could not find help chapter for: " + heading);
+		println( "\n" + this.markdown( matches[4].trim() ).trim() );
+	},
+	
+	dieUsage(heading) {
+		// print help and exit
+		this.printHelp(heading);
+		println("");
+		process.exit(1);
 	},
 	
 	die(msg, extra = "") {
@@ -331,21 +349,6 @@ const app = {
 			if (msg.message) msg = msg.message;
 		}
 		die( "\n❌ " + red.bold("ERROR: ") + yellow.bold(msg) + "\n\n" + extra );
-	},
-	
-	usage(text) {
-		if (CMD_HELP_TEXT[text]) text = CMD_HELP_TEXT[text];
-		return yellow.bold("Usage: ") + green(text.trim()) + "\n\n";
-	},
-	
-	dieUsage(text) {
-		die( "\n" + this.usage(text) );
-	},
-	
-	success(msg) {
-		// print colorful success message
-		msg = this.markdown(msg);
-		print( "\n✅ " + green.bold("Success: ") + green(msg) + "\n" );
 	}
 	
 };
