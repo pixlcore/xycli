@@ -10,6 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const cp = require('child_process');
 const Path = require('path');
+const Uncatch = require('uncatch');
 const cli = require('pixl-cli');
 const { api } = require('@pixlcore/xyops-sdk');
 const pkg = require('./package.json');
@@ -22,8 +23,17 @@ cli.mapArgs({
 	'd': 'debug',
 	'f': 'format',
 	'r': 'raw',
-	'i': 'invisible',
 	'h': 'help'
+});
+
+process.on('SIGINT', function() { cli.progress.end(); process.exit(130); } );
+process.on('SIGTERM', function() { cli.progress.end(); process.exit(143); } );
+process.on('SIGHUP', function() { cli.progress.end(); process.exit(129); } );
+
+Uncatch.on('uncaughtException', function(err) {
+	// execute your own application shutdown routine here
+	// do not call any async code, and do not call process.exit
+	cli.progress.end();
 });
 
 var highlight = require('cli-highlight').highlight;
@@ -138,11 +148,11 @@ const app = {
 		this.raw = args.raw || this.config.raw || false;
 		delete args.raw;
 		
-		this.invisible = args.invisible || this.config.invisible || false;
-		delete args.invisible;
-		
 		this.dry = args.dry || false;
 		delete args.dry;
+		
+		// show invisible jobs: config prop only
+		this.invisible = this.config.invisible || false;
 		
 		// optionally disable all ANSI color
 		if ((("color" in this.config) && !this.config.color) || (('color' in args) && !args.color)) {
@@ -213,11 +223,11 @@ const app = {
 			delete args.json;
 		}
 		
-		// allow args to be dot.path.syntax
+		// any arg value that looks like json will be parsed
 		for (var key in args) {
-			if (key.match(/\./)) {
-				Tools.setPath( args, key, args[key] );
-				delete args[key];
+			if (args[key] && (typeof(args[key]) == 'string') && (args[key].trim().match(/^\{[\s\S]*\}$/) || args[key].trim().match(/^\[[\s\S]*\]$/))) {
+				try { args[key] = JSON.parse( args[key] ); }
+				catch (err) { this.die("Failed to parse JSON from argument: " + err); }
 			}
 		}
 		
@@ -233,6 +243,13 @@ const app = {
 		
 		// merge in config from xyops
 		await this.cacheConfig();
+		
+		// call generic api cmd before extracting pagination args
+		if (cmd == 'api') {
+			await this['cmd_' + cmd]();
+			print("\n");
+			return;
+		}
 		
 		// global pagination args
 		this.offset = args.offset || 0;
@@ -276,15 +293,25 @@ const app = {
 	
 	async cmd_api() {
 		// perform arbitrary xyops api call
+		// e.g. "xy api getEvents"
 		var name = this.args.other.shift();
 		delete this.args.other;
+		
+		this.mergeDotArgs( this.args, this.args );
 		
 		println( "\n " + this.color('theme').bold("Calling API: " + name) );
 		
 		print( "\n " + cyan.bold("Request:") );
 		this.jsonOutput(this.args);
 		
+		if (this.dry) {
+			println( "\n " + bold.yellow("DRY RUN: ") + "Exiting without sending request." );
+			return;
+		}
+		
+		cli.progress.start({ amount: 1, pct: false, text: gray('→ ' + name) });
 		var { err, data } = await this.api[name](this.args);
+		cli.progress.end();
 		if (err) this.die(err);
 		
 		print( "\n " + cyan.bold("Response:") );
