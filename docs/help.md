@@ -6,9 +6,10 @@ Welcome to the xyOps command-line interface. Use `xy` to check your system at a 
 xy
 xy events
 xy jobs
+xy keys
 ```
 
-The CLI provides collection commands such as `events` and `jobs`, plus singular routers for working with one event or job. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, and `keys`, plus singular routers for working with one event, job, or API Key. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -16,6 +17,8 @@ xy help event
 xy help event create
 xy help jobs
 xy help job get
+xy help keys
+xy help key add
 ```
 
 # Command Reference
@@ -79,6 +82,97 @@ Show the main dashboard with the upcoming-jobs section included. This is a conve
 xy upcoming
 xy dashboard --upcoming
 ```
+
+## keys
+
+List API Keys and their safe metadata. The plaintext secret is never included. You can search by ID, title, description, or partial key, and filter by status, direct privilege, or role ID.
+
+```sh
+xy keys
+xy keys SEARCH_TEXT
+xy keys --active false
+xy keys --expired true
+xy keys --privilege run_jobs
+xy keys --role ROLE_ID
+xy keys --format json
+```
+
+The list includes the internal Key ID, which is safe to display and is used by update and delete commands. `--active false` includes disabled keys. `--expired true` includes enabled or disabled keys whose expiration time has passed.
+
+## key
+
+Work with one API Key by viewing, adding, updating, or deleting it. A bare ID or fuzzy title opens the key details directly.
+
+```sh
+xy key KEY_ID_OR_TITLE
+xy key get KEY_ID_OR_TITLE
+xy key add --title "My App" --privileges.admin
+xy key update KEY_ID --active false
+xy key delete KEY_ID --confirm
+```
+
+Updates and deletes require the exact internal Key ID. The authentication secret itself can never be updated or retrieved.
+
+## key get
+
+View one API Key's safe metadata, including its partial key, status, privileges, roles, rate limit, expiration, and last-used time. The stored key hash and plaintext secret are never displayed.
+
+```sh
+xy key KEY_ID_OR_TITLE
+xy key get KEY_ID_OR_TITLE
+xy key get KEY_ID --format json
+```
+
+## key add
+
+Create a new API Key. xyOps generates the authentication secret and the CLI displays it exactly once. Copy it immediately and store it securely.
+
+```sh
+xy key add --title "My App"
+xy key add --title "Admin Tool" --privileges.admin
+xy key add --title "Runner" --privileges.run_jobs --description "Production runner"
+xy key add --title "Service" --privilege run_jobs --privilege tag_jobs
+xy key add --title "Service" --role ROLE_ID --rate 10
+xy key add --title "Temporary" --expires "2026-12-31"
+xy key add --title "Dormant" --active false
+xy key add --title "From JSON" --json @key.json
+xy key add --title "Preview" --dry
+```
+
+Without an explicit privilege selection, new keys inherit the server's default user privileges. Use dotted options such as `--privileges.admin`, a JSON object in `--privileges`, or repeat `--privilege PRIVILEGE_ID`. Selecting `admin` removes redundant direct privileges because administrators already have every privilege.
+
+Roles can be supplied using `--roles ROLE_ID_1,ROLE_ID_2`, a JSON array, or repeated `--role ROLE_ID` options. `--rate 0` means unlimited. Expiration accepts a date or time understood by Node.js, a Unix timestamp, or `never`.
+
+With `--format json`, the one-time secret is returned as `plain_key`; the accompanying `api_key` object contains safe metadata only.
+
+## key update
+
+Update an API Key using its exact internal ID. Dotted privilege options preserve the key's other direct privileges.
+
+```sh
+xy key update KEY_ID --title "New App Title"
+xy key update KEY_ID --active false
+xy key update KEY_ID --privileges.run_jobs true
+xy key update KEY_ID --privileges.tag_jobs false
+xy key update KEY_ID --role ROLE_ID
+xy key update KEY_ID --roles '[]'
+xy key update KEY_ID --rate 25 --expires "2027-01-01"
+xy key update KEY_ID --expires never
+xy key update KEY_ID --description "Preview" --dry
+```
+
+Setting a dotted privilege to `false` removes it from the privilege hash. Pass a complete privilege object or roles array when you want to replace the current collection. For example, `--roles '[]'` removes all roles. The API Key secret cannot be updated. Create a replacement key instead.
+
+## key delete
+
+Permanently delete an API Key using its exact internal ID. Explicit confirmation is required.
+
+```sh
+xy key delete KEY_ID --confirm
+xy key delete KEY_ID --confirm --dry
+```
+
+Deletion cannot be undone. Any service using the deleted key immediately loses access.
 
 ## events
 
