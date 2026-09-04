@@ -240,7 +240,7 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, events, event, run, jobs, job, keys, key, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, events, event, run, jobs, job, keys, key, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
@@ -361,6 +361,7 @@ Tools.mergeHashInto( app, require('./lib/dashboard.js') );
 Tools.mergeHashInto( app, require('./lib/events.js') );
 Tools.mergeHashInto( app, require('./lib/jobs.js') );
 Tools.mergeHashInto( app, require('./lib/apikey.js') );
+Tools.mergeHashInto( app, require('./lib/alerts.js') );
 
 global.app = app;
 

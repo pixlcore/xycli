@@ -7,9 +7,10 @@ xy
 xy events
 xy jobs
 xy keys
+xy alerts
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, and `keys`, plus singular routers for working with one event, job, or API Key. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, and `alerts`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -19,6 +20,10 @@ xy help jobs
 xy help job get
 xy help keys
 xy help key add
+xy help alerts
+xy help alerts search
+xy help alert
+xy help alert create
 ```
 
 # Command Reference
@@ -82,6 +87,134 @@ Show the main dashboard with the upcoming-jobs section included. This is a conve
 xy upcoming
 xy dashboard --upcoming
 ```
+
+## alerts
+
+List alert definitions, or search alert invocations when the next word is `search`. This keeps the common command short while making the resource type clear from the operation and output heading.
+
+```sh
+xy alerts
+xy alerts list
+xy alerts SEARCH_TEXT
+xy alerts --enabled false
+xy alerts --group ID_OR_TITLE
+xy alerts --monitor ID_OR_TITLE
+xy alerts search
+xy alerts search --active
+```
+
+The bare and `list` forms always show definitions. Search text matches definition IDs, titles, expressions, and messages. Definition filters may be combined.
+
+## alerts search
+
+Search historical and active alert invocations. A positional query uses the native xyOps search syntax, while common filters have shorter named options.
+
+```sh
+xy alerts search
+xy alerts search 'active:true server:SERVER_ID'
+xy alerts search --alert ID_OR_TITLE
+xy alerts search --server ID_OR_TITLE
+xy alerts search --group ID_OR_TITLE
+xy alerts search --active
+xy alerts search --cleared
+xy alerts search --date today
+xy alerts search --date 2026-09-01
+xy alerts search --job JOB_ID
+xy alerts search --ticket TICKET_ID
+xy alerts search --oldest
+xy alerts search --format json
+```
+
+`--alert`, `--server`, and `--group` accept an ID or fuzzy title. Built-in date ranges are `now`, `hour`, `lasthour`, `today`, `yesterday`, `month`, `lastmonth`, `year`, `lastyear`, and `older`. Newest invocations are shown first unless `--oldest` or `--sort asc` is supplied.
+
+Any other named option becomes a native `field:value` search criterion. This provides access to new indexed fields without requiring a CLI release.
+
+## alert
+
+Work with alert definitions and alert invocations through one short command. Operations that create, update, or test always target definitions. Search always targets invocations.
+
+```sh
+xy alert ID_OR_TITLE
+xy alert get ID_OR_TITLE
+xy alert create --title "My Alert" --expression "cpu.currentLoad > 80" --message "CPU is high"
+xy alert update DEFINITION_ID --enabled false
+xy alert test DEFINITION_ID --server SERVER_ID_OR_TITLE
+xy alert delete ALERT_ID --confirm
+```
+
+Get and delete can refer to either resource type. The CLI checks the local alert-definition list for an exact ID first. If no definition matches, it treats the ID as an invocation. Get also falls back to a fuzzy definition title when neither exact lookup succeeds.
+
+## alert get
+
+View either an alert definition or alert invocation. A bare selector is the short form of `alert get`.
+
+```sh
+xy alert ID_OR_TITLE
+xy alert get ID_OR_TITLE
+xy alert get ALERT_ID --format json
+```
+
+Definition detail includes its expression, message, groups, monitor overlay, behavior flags, revision metadata, and configured actions. Invocation detail includes its definition, server, status, timing, evaluated message and expression, executed actions, snapshots, tickets, and jobs.
+
+## alert create
+
+Create an alert definition. Title, expression, and message are required. The remaining fields use the same defaults as the xyOps web interface.
+
+```sh
+xy alert create --title "High CPU" --expression "cpu.currentLoad > 80" --message "CPU is {{pct(cpu.currentLoad)}}"
+xy alert create --title "Main Servers" --expression "cpu.cores > 0" --message "Online" --group main
+xy alert create --title "Careful" --expression "monitors.load_avg > 10" --message "High load" --samples 3
+xy alert create --title "Job Guard" --expression "monitors.load_avg > 20" --message "High load" --limit-jobs --abort-jobs
+xy alert create --title "Custom Action" --expression "cpu.cores > 0" --message "Online" --action @action.json
+xy alert create --title "Preview" --expression "cpu.cores > 0" --message "Online" --dry
+```
+
+Repeat `--group` to restrict the definition to multiple server groups. Use `--monitor ID`, `--samples N`, `--exclusive`, `--limit-jobs`, and `--abort-jobs` for the corresponding definition settings. Actions may be supplied as a complete JSON array in `--actions` or appended as JSON objects with repeated `--action` options.
+
+Alert definitions normally inherit alert actions from matching server groups and the universal configuration. `--exclusive` limits execution to actions stored directly on the definition.
+
+## alert update
+
+Update an alert definition by its exact internal ID. Alert invocations cannot be updated.
+
+```sh
+xy alert update DEFINITION_ID --title "New Title"
+xy alert update DEFINITION_ID --enabled false
+xy alert update DEFINITION_ID --expression "monitors.load_avg > 12" --samples 2
+xy alert update DEFINITION_ID --monitor none
+xy alert update DEFINITION_ID --group main
+xy alert update DEFINITION_ID --exclusive true --limit-jobs false
+xy alert update DEFINITION_ID --actions.0.enabled false
+xy alert update DEFINITION_ID --delete actions.0.params.example
+xy alert update DEFINITION_ID --notes "Preview" --dry
+```
+
+Dotted options preserve sibling properties by applying changes to the loaded definition before sending it back to xyOps. Repeat `--delete PATH` to remove nested object properties. Paths are strict, so missing properties and attempts to delete array elements are rejected.
+
+## alert test
+
+Test an alert definition against the current monitor data for one server. This validates the expression and message macros, then shows whether the definition would trigger and previews the evaluated message.
+
+```sh
+xy alert test DEFINITION_ID --server SERVER_ID_OR_TITLE
+xy alert test "High CPU" --server web-01
+xy alert test --server SERVER_ID --expression "cpu.cores > 0" --message "{{os.hostname}} is online"
+xy alert test DEFINITION_ID --server SERVER_ID --expression "false"
+```
+
+The final two forms provide temporary overrides and do not update the stored definition.
+
+## alert delete
+
+Permanently delete an alert definition or one alert invocation by exact internal ID. Explicit confirmation is always required.
+
+```sh
+xy alert delete DEFINITION_ID --confirm
+xy alert delete INVOCATION_ID --confirm
+xy alert delete ALERT_ID --confirm --dry
+```
+
+Deleting an invocation removes only that historical record. Deleting a definition also clears its active and warm state, then starts background deletion of every invocation created from it. The CLI displays this cascading behavior before confirmation and in the success message.
 
 ## keys
 
