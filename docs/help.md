@@ -153,7 +153,8 @@ Update an API Key using its exact internal ID. Dotted privilege options preserve
 xy key update KEY_ID --title "New App Title"
 xy key update KEY_ID --active false
 xy key update KEY_ID --privileges.run_jobs true
-xy key update KEY_ID --privileges.tag_jobs false
+xy key update KEY_ID --delete privileges.tag_jobs
+xy key update KEY_ID --delete privileges.tag_jobs --delete privileges.run_jobs
 xy key update KEY_ID --role ROLE_ID
 xy key update KEY_ID --roles '[]'
 xy key update KEY_ID --rate 25 --expires "2027-01-01"
@@ -161,7 +162,9 @@ xy key update KEY_ID --expires never
 xy key update KEY_ID --description "Preview" --dry
 ```
 
-Setting a dotted privilege to `false` removes it from the privilege hash. Pass a complete privilege object or roles array when you want to replace the current collection. For example, `--roles '[]'` removes all roles. The API Key secret cannot be updated. Create a replacement key instead.
+Repeat `--delete PATH` to remove one or more existing nested object properties. Paths are strict, so missing properties and attempts to delete array elements are rejected. Setting a dotted privilege to `false` also removes it from the privilege hash.
+
+Pass a complete privilege object or roles array when you want to replace the current collection. For example, `--roles '[]'` removes all roles. The API Key secret cannot be updated. Create a replacement key instead.
 
 ## key delete
 
