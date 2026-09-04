@@ -8,9 +8,10 @@ xy events
 xy jobs
 xy keys
 xy alerts
+xy buckets
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, and `alerts`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, and `buckets`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -24,6 +25,9 @@ xy help alerts
 xy help alerts search
 xy help alert
 xy help alert create
+xy help buckets
+xy help bucket
+xy help bucket write
 ```
 
 # Command Reference
@@ -215,6 +219,173 @@ xy alert delete ALERT_ID --confirm --dry
 ```
 
 Deleting an invocation removes only that historical record. Deleting a definition also clears its active and warm state, then starts background deletion of every invocation created from it. The CLI displays this cascading behavior before confirmation and in the success message.
+
+## buckets
+
+List storage bucket definitions and their safe metadata. Bucket data and file lists are loaded only when viewing one bucket.
+
+```sh
+xy buckets
+xy buckets list
+xy buckets SEARCH_TEXT
+xy buckets --enabled false
+xy buckets --disabled
+xy buckets --format json
+```
+
+Search text matches bucket IDs, titles, notes, and authors. The first table column contains the complete internal Bucket ID, which is used by all mutating commands.
+
+## bucket
+
+Work with a storage bucket's metadata, JSON data, and files. A bare ID or fuzzy title opens the complete bucket details.
+
+```sh
+xy bucket BUCKET_ID_OR_TITLE
+xy bucket get BUCKET_ID_OR_TITLE
+xy bucket create --title "Build Artifacts"
+xy bucket update BUCKET_ID --title "Release Artifacts"
+xy bucket write BUCKET_ID --data @data.json
+xy bucket upload BUCKET_ID --file report.csv
+xy bucket file download BUCKET_ID report.csv
+xy bucket file delete BUCKET_ID report.csv --confirm
+xy bucket empty BUCKET_ID --data --files --confirm
+xy bucket delete BUCKET_ID --confirm
+```
+
+The mutation commands deliberately separate metadata, data, and files. Writing data, uploading files, deleting a file, and emptying contents use the dedicated xyOps content APIs, so those actions do not change the bucket revision or modified date.
+
+## bucket get
+
+View a bucket definition together with all current JSON data and file metadata. The file list includes complete File IDs and normalized filenames.
+
+```sh
+xy bucket BUCKET_ID_OR_TITLE
+xy bucket get BUCKET_ID_OR_TITLE
+xy bucket get BUCKET_ID --format json
+```
+
+The JSON response contains `bucket`, `data`, and `files` properties.
+
+## bucket create
+
+Create a storage bucket with optional initial JSON data and files. The title is required. Status, icon, and notes use the same fields as the web interface.
+
+```sh
+xy bucket create --title "Build Artifacts"
+xy bucket create --title "Disabled Bucket" --enabled false
+xy bucket create --title "Release Data" --icon archive --notes "Production releases"
+xy bucket create --title "Counters" --data.count 1 --data.status ready
+xy bucket create --title "From Data" --data @data.json
+cat data.json | xy bucket create --title "From STDIN" --data @-
+xy bucket create --json @bucket.json
+xy bucket create --title "With Files" --file report.csv --file summary.txt
+xy bucket create --title "Preview" --data @data.json --file report.csv --dry
+```
+
+Initial data is stored as part of revision 1. Files are uploaded through the dedicated file API immediately after the bucket is created. If a file upload fails, the new bucket remains available so the upload can be retried with `bucket upload`.
+
+## bucket update
+
+Update bucket metadata using the exact internal Bucket ID.
+
+```sh
+xy bucket update BUCKET_ID --title "Release Artifacts"
+xy bucket update BUCKET_ID --enabled false
+xy bucket update BUCKET_ID --icon archive --notes "Production releases"
+xy bucket update BUCKET_ID --notes "Preview" --dry
+```
+
+This command only accepts `title`, `enabled`, `icon`, and `notes`. Use `bucket write` for JSON data and the file commands for file contents. Metadata updates advance the bucket revision and modified date.
+
+## bucket write
+
+Shallow-merge a JSON object into a bucket's existing data using the dedicated data API. The exact internal Bucket ID is required.
+
+```sh
+xy bucket write BUCKET_ID --data.status ready --data.build 42
+xy bucket write BUCKET_ID --data @data.json
+cat data.json | xy bucket write BUCKET_ID --data @-
+xy bucket write BUCKET_ID --json @request.json
+cat request.json | xy bucket write BUCKET_ID --json @-
+xy bucket write BUCKET_ID --data @data.json --format json
+```
+
+`--data @-` treats the piped object as the bucket data itself. The `--json` forms accept a complete request object containing a `data` property. As with the xyOps API, this is a shallow merge. Existing top-level keys not present in the input are preserved.
+
+## bucket upload
+
+Upload one or more local files without changing bucket metadata. Existing files with the same normalized filename are replaced.
+
+```sh
+xy bucket upload BUCKET_ID --file report.csv
+xy bucket upload BUCKET_ID --file report.csv --file summary.txt
+xy bucket upload BUCKET_ID --files '["report.csv", "summary.txt"]'
+xy bucket upload BUCKET_ID --file report.csv --dry
+```
+
+xyOps normalizes uploaded filenames to lowercase and replaces unsupported characters with underscores. Server-configured file count, size, and type limits still apply.
+
+## bucket file
+
+Download or permanently delete one file. Supply either the exact normalized filename or the internal File ID shown by `bucket get`.
+
+```sh
+xy bucket file download BUCKET_ID report.csv
+xy bucket file download BUCKET_ID FILE_ID ./downloads/report.csv
+xy bucket file delete BUCKET_ID report.csv --confirm
+xy bucket file delete BUCKET_ID FILE_ID --confirm
+```
+
+## bucket file download
+
+Download a bucket file to disk. The output path defaults to the stored filename in the current directory, or it can be supplied as the final positional argument, with `--output`, or with `--download`.
+
+```sh
+xy bucket file download BUCKET_ID report.csv
+xy bucket file download BUCKET_ID report.csv ./downloads/report.csv
+xy bucket file download BUCKET_ID report.csv --output ./report-copy.csv
+xy bucket download BUCKET_ID report.csv --download ./report-copy.csv
+xy bucket file download BUCKET_ID report.csv --dry
+```
+
+The command refuses to overwrite an existing local file.
+
+## bucket file delete
+
+Permanently delete one bucket file. Explicit confirmation is required.
+
+```sh
+xy bucket file delete BUCKET_ID report.csv --confirm
+xy bucket file delete BUCKET_ID FILE_ID --confirm
+xy bucket file delete BUCKET_ID report.csv --confirm --dry
+```
+
+Deleting a file uses the dedicated content API and does not advance the bucket revision or modified date.
+
+## bucket empty
+
+Permanently clear all data, all files, or both while keeping the bucket definition. Explicit confirmation is required.
+
+```sh
+xy bucket empty BUCKET_ID --data --confirm
+xy bucket empty BUCKET_ID --files --confirm
+xy bucket empty BUCKET_ID --data --files --confirm
+xy bucket empty BUCKET_ID --all --confirm
+xy bucket empty BUCKET_ID --all --confirm --dry
+```
+
+Emptying contents uses the dedicated content API and does not advance the bucket revision or modified date.
+
+## bucket delete
+
+Permanently delete a bucket definition together with all of its data and files. The exact internal Bucket ID and explicit confirmation are required.
+
+```sh
+xy bucket delete BUCKET_ID --confirm
+xy bucket delete BUCKET_ID --confirm --dry
+```
+
+Bucket deletion cannot be undone.
 
 ## keys
 
