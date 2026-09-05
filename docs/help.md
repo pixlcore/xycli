@@ -21,7 +21,7 @@ xy help event create
 xy help jobs
 xy help job get
 xy help keys
-xy help key add
+xy help key create
 xy help alerts
 xy help alerts search
 xy help alert
@@ -411,12 +411,12 @@ The list includes the internal Key ID, which is safe to display and is used by u
 
 ## key
 
-Work with one API Key by viewing, adding, updating, or deleting it. A bare ID or fuzzy title opens the key details directly.
+Work with one API Key by viewing, creating, updating, or deleting it. A bare ID or fuzzy title opens the key details directly.
 
 ```sh
 xy key KEY_ID_OR_TITLE
 xy key get KEY_ID_OR_TITLE
-xy key add --title "My App" --privileges.admin
+xy key create --title "My App" --privileges.admin
 xy key update KEY_ID --active false
 xy key delete KEY_ID --confirm
 ```
@@ -433,20 +433,20 @@ xy key get KEY_ID_OR_TITLE
 xy key get KEY_ID --format json
 ```
 
-## key add
+## key create
 
 Create a new API Key. xyOps generates the authentication secret and the CLI displays it exactly once. Copy it immediately and store it securely.
 
 ```sh
-xy key add --title "My App"
-xy key add --title "Admin Tool" --privileges.admin
-xy key add --title "Runner" --privileges.run_jobs --description "Production runner"
-xy key add --title "Service" --privilege run_jobs --privilege tag_jobs
-xy key add --title "Service" --role ROLE_ID --rate 10
-xy key add --title "Temporary" --expires "2026-12-31"
-xy key add --title "Dormant" --active false
-xy key add --title "From JSON" --json @key.json
-xy key add --title "Preview" --dry
+xy key create --title "My App"
+xy key create --title "Admin Tool" --privileges.admin
+xy key create --title "Runner" --privileges.run_jobs --description "Production runner"
+xy key create --title "Service" --privilege run_jobs --privilege tag_jobs
+xy key create --title "Service" --role ROLE_ID --rate 10
+xy key create --title "Temporary" --expires "2026-12-31"
+xy key create --title "Dormant" --active false
+xy key create --title "From JSON" --json @key.json
+xy key create --title "Preview" --dry
 ```
 
 Without an explicit privilege selection, new keys inherit the server's default user privileges. Use dotted options such as `--privileges.admin`, a JSON object in `--privileges`, or repeat `--privilege PRIVILEGE_ID`. Selecting `admin` removes redundant direct privileges because administrators already have every privilege.
