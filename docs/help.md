@@ -9,9 +9,10 @@ xy jobs
 xy keys
 xy alerts
 xy buckets
+xy categories
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, and `buckets`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, and `categories`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -28,6 +29,9 @@ xy help alert create
 xy help buckets
 xy help bucket
 xy help bucket write
+xy help categories
+xy help category
+xy help category create
 ```
 
 # Command Reference
@@ -56,6 +60,8 @@ xy repl
 ```
 
 The REPL exposes `app`, `xy`, `config`, `cli`, and `Tools` in its context.
+
+Type `.exit` or hit `Ctrl-C` to exit.
 
 ## config
 
@@ -480,6 +486,115 @@ xy key delete KEY_ID --confirm --dry
 ```
 
 Deletion cannot be undone. Any service using the deleted key immediately loses access.
+
+## categories
+
+List categories in their saved sort order, including IDs, titles, status, event counts, authors, and modification times. Search text matches IDs, titles, and notes. Named filters may be combined.
+
+```sh
+xy categories
+xy categories SEARCH_TEXT
+xy categories --enabled false
+xy categories --color blue
+xy categories --title Production --enabled true
+xy categories --limit 10 --page 2
+xy categories --format json
+```
+
+Use `--limit`, `--page`, or `--offset` to page through the table. JSON output includes all matching category definitions. Event counts reflect the events visible to your API Key.
+
+## category
+
+View, create, update, or delete a category. A bare ID or fuzzy title opens its details. Updates and deletes require an exact category ID.
+
+```sh
+xy category CAT_ID_OR_TITLE
+xy category get CAT_ID_OR_TITLE
+xy category list
+xy category create --title "My Category" --notes "Hello"
+xy category update CAT_ID --enabled false
+xy category delete CAT_ID --confirm
+```
+
+## category list
+
+List and filter categories. This is an alias for `xy categories`, with the same options.
+
+```sh
+xy category list
+xy category list --enabled true
+xy category list --limit 10 --page 2
+```
+
+## category get
+
+View category metadata and its configured actions and limits. Each array row includes a zero-based index you can use in dotted updates. An exact ID takes precedence over fuzzy title matching.
+
+```sh
+xy category CAT_ID_OR_TITLE
+xy category get --id CAT_ID
+xy category get --title "My Category"
+xy category CAT_ID --format json
+xy events --category CAT_ID
+```
+
+The action and limit tables show the category's own settings. These apply to jobs belonging to the category alongside event settings and universal defaults.
+
+## category create
+
+Create a category with a required title. New categories default to enabled, plain color, empty notes and icon, and empty action and limit arrays. xyOps generates an ID unless you provide `--id`, and places the category at the end of the saved sort order.
+
+```sh
+xy category create --title "My Category" --notes "Hello"
+xy category create --id maintenance --title "Maintenance" --enabled false
+xy category create --title "Production" --color blue --icon folder-outline
+xy category create --title "Notifications" --action '{ "type":"email", "enabled":true, "condition":"success", "users":["admin"] }'
+xy category create --title "Short Jobs" --limit '{ "type":"time", "enabled":true, "duration":300, "abort":true }'
+xy category create --title "Imported Settings" --actions @actions.json --limits @limits.json
+xy category create --json @category.json
+cat category.json | xy category create --json @-
+xy category create --title "Preview" --dry
+```
+
+Supported creation fields are `id`, `title`, `enabled`, `color`, `icon`, `notes`, `actions`, and `limits`. Common colors include `plain`, `red`, `orange`, `yellow`, `green`, `blue`, and `purple`. Set `color` to `false` in your CLI configuration to disable terminal colors (for example, `xy config --color false`). The category `--color` option sets the category color.
+
+As with events, `--actions` and `--limits` supply complete JSON arrays, while `--action` and `--limit` append objects. Singular options can be repeated. Here `--limit` is a resource limit object, while list commands use it for pagination. xyOps validates the action types, conditions, targets, and limit values. Add `--format json` to print the created category object.
+
+## category update
+
+Update a category by exact ID. Only the selected top-level fields are sent to xyOps. Dotted updates load the current arrays and preserve the other entries and properties.
+
+```sh
+xy category update CAT_ID --title "New Title" --notes "Updated notes"
+xy category update CAT_ID --enabled false
+xy category update CAT_ID --color green --icon folder-outline
+xy category update CAT_ID --actions.0.condition complete --actions.0.enabled true
+xy category update CAT_ID --action '{ "type":"email", "enabled":true, "condition":"success", "users":["admin"] }'
+xy category update CAT_ID --limits.0.duration 600
+xy category update CAT_ID --limit '{ "type":"time", "enabled":true, "duration":300, "abort":true }'
+xy category update CAT_ID --actions @actions.json --limits @limits.json
+xy category update CAT_ID --actions '[]' --limits '[]'
+xy category update --id CAT_ID --sort_order 0
+xy category update CAT_ID --enabled false --dry
+```
+
+Editable fields are `title`, `enabled`, `color`, `icon`, `notes`, `sort_order`, `actions`, and `limits`. The ID and server-managed audit fields cannot be changed. `sort_order` is a non-negative integer and does not renumber other categories.
+
+Numerical array indexes must already exist. Use the singular `--action` or `--limit` option to append, or the plural option to replace an entire array. Supply `[]` to clear an array; to remove one entry, submit a replacement array without it. When combining array replacement and dotted edits, the replacement is applied first, followed by dotted edits and then singular appends.
+
+Disabling a category prevents scheduling and manual launches for all its events and workflows. `--dry` previews the outgoing request. `--format json` prints the API success response.
+
+## category delete
+
+Permanently delete a category by exact ID. Explicit confirmation is required, and xyOps refuses deletion while any events or workflows still belong to the category. Move or delete those events first.
+
+```sh
+xy category delete CAT_ID --confirm
+xy category delete --id CAT_ID --confirm
+xy category delete CAT_ID --confirm --dry
+```
+
+`--dry` previews the request without deleting anything. `--format json` prints the API success response.
 
 ## events
 

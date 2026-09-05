@@ -158,7 +158,7 @@ const app = {
 		this.invisible = this.config.invisible || false;
 		
 		// optionally disable all ANSI color
-		if ((("color" in this.config) && !this.config.color) || (('color' in args) && !args.color)) {
+		if (("color" in this.config) && !this.config.color) {
 			cli.chalk.enabled = false;
 			highlight = this.highlight = function(text) { return text; };
 		}
@@ -174,7 +174,6 @@ const app = {
 		
 		delete args.debug;
 		delete args.echo;
-		delete args.color;
 		delete args.quiet;
 		delete args.verbose;
 		
@@ -241,30 +240,11 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, events, event, run, jobs, job, keys, key, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, events, event, run, jobs, job, keys, key, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
 		await this.cacheConfig();
-		
-		// call generic api cmd before extracting pagination args
-		if (cmd == 'api') {
-			await this['cmd_' + cmd]();
-			print("\n");
-			return;
-		}
-		
-		// global pagination args
-		this.offset = args.offset || 0;
-		delete args.offset;
-		
-		this.limit = args.limit || this.config.items_per_page;
-		delete args.limit;
-		
-		if (args.page) {
-			this.offset = (args.page - 1) * this.limit;
-			delete args.page;
-		}
 		
 		// go go go
 		await this['cmd_' + cmd]();
@@ -276,6 +256,11 @@ const app = {
 	async cmd_repl() {
 		// open repl for user to debug
 		await this.getMultiple();
+		
+		println( "\n" + this.markdown(
+			"The REPL exposes `app`, `xy`, `config`, `cli`, and `Tools` in its context.\n\n" + 
+			"Type `.exit` or hit `Ctrl-C` to exit."
+		) );
 		
 		print("\n");
 		var repl = this.repl = require('repl').start({ prompt: '> ', useGlobal: true, ignoreUndefined: true });
@@ -364,6 +349,7 @@ Tools.mergeHashInto( app, require('./lib/jobs.js') );
 Tools.mergeHashInto( app, require('./lib/apikey.js') );
 Tools.mergeHashInto( app, require('./lib/alerts.js') );
 Tools.mergeHashInto( app, require('./lib/buckets.js') );
+Tools.mergeHashInto( app, require('./lib/categories.js') );
 
 global.app = app;
 
