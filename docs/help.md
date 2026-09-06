@@ -12,9 +12,10 @@ xy buckets
 xy categories
 xy channels
 xy log xyOps --rows 100
+xy monitors
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, and `channels`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, and `monitors`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -38,6 +39,10 @@ xy help channels
 xy help channel
 xy help channel create
 xy help log
+xy help monitors
+xy help monitor
+xy help monitor create
+xy help monitor test
 ```
 
 # Command Reference
@@ -713,6 +718,134 @@ xy channel delete CHANNEL_ID --confirm --dry
 ```
 
 Deletion does not remove references from events, workflows, categories, server groups, or alerts. Update those actions when replacing a channel. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+
+## monitors
+
+List monitor definitions in their configured sort order, including IDs, titles, display settings, data types, server groups, and modification times. Search text matches IDs, titles, source expressions, and notes.
+
+```sh
+xy monitors
+xy monitors SEARCH_TEXT
+xy monitors --display false
+xy monitors --data_type bytes --delta true
+xy monitors --group GROUP_ID_OR_TITLE
+xy monitors --limit 10 --page 2
+xy monitors --format json
+```
+
+Named filters can be combined. `--group` includes monitors assigned to the selected group and monitors that apply to all groups. Boolean filters include `--display`, `--delta`, and `--divide_by_delta`. `--limit`, `--page`, and `--offset` page through the table. JSON output includes all matching definitions.
+
+## monitor
+
+View, create, update, test, or delete a server monitor. A bare ID or fuzzy title opens its details. Updates and deletes require an exact monitor ID.
+
+```sh
+xy monitor MONITOR_ID_OR_TITLE
+xy monitor get MONITOR_ID_OR_TITLE
+xy monitor list
+xy monitor create --title "CPU Usage" --source cpu.currentLoad --suffix %
+xy monitor update MONITOR_ID --display false
+xy monitor test MONITOR_ID_OR_TITLE --server SERVER_ID_OR_TITLE
+xy monitor delete MONITOR_ID --confirm
+```
+
+Monitors extract numeric metrics from server data using xyOps expressions. `display` controls visibility in the web interface; hiding a monitor does not stop collection or prevent alerts from using its values.
+
+## monitor list
+
+List and filter monitor definitions using the same options as `xy monitors`.
+
+```sh
+xy monitor list
+xy monitor list --display true --data_type float
+xy monitor list --limit 10 --page 2
+```
+
+## monitor get
+
+View a monitor's source expression, data type, regular expression, delta settings, server groups, display settings, notes, and revision metadata. Exact IDs take precedence over fuzzy titles.
+
+```sh
+xy monitor MONITOR_ID_OR_TITLE
+xy monitor get --id MONITOR_ID
+xy monitor get --title "CPU Usage"
+xy monitor MONITOR_ID --format json
+```
+
+## monitor create
+
+Create a monitor with a required title and source expression. Defaults are `float` data, visible display, all server groups, no delta processing, and empty suffix, regular expression, icon, and notes. xyOps generates the ID unless you supply `--id`, and places the monitor at the end of the list.
+
+```sh
+xy monitor create --title "CPU Usage" --source cpu.currentLoad --suffix % --min_vert_scale 100
+xy monitor create --id free_memory --title "Free Memory" --source memory.available --data_type bytes
+xy monitor create --title "Network Bytes per Second" --source stats.network.rx_bytes --data_type bytes --delta true --divide_by_delta true --delta_min_value 0
+xy monitor create --title "Process Count" --source processes.all --data_type integer --groups '["GROUP_ID"]'
+xy monitor create --title "Hidden Metric" --source cpu.currentLoad --display false --notes "Used by alerts"
+xy monitor create --json @monitor.json
+cat monitor.json | xy monitor create --json @-
+xy monitor create --title "Preview" --source cpu.currentLoad --dry
+```
+
+Supported fields are `id`, `title`, `source`, `data_type`, `data_match`, `display`, `icon`, `groups`, `suffix`, `min_vert_scale`, `delta`, `divide_by_delta`, `delta_min_value`, and `notes`.
+
+`source` is an xyOps expression evaluated against server data. `data_type` is one of `integer`, `float`, `bytes`, `seconds`, or `milliseconds`. Optional `data_match` is a JavaScript regular expression string; its first capture group, or the whole match if there are no captures, supplies the numeric value. Use `xy monitor test` to check an expression against a server before saving it.
+
+`--groups` accepts a JSON array, comma-separated group IDs, or `@groups.json`. Repeated `--group GROUP_ID` options append groups without duplicates. An empty array means all groups.
+
+`--delta true` tracks changes between samples. `--divide_by_delta true` divides those changes by elapsed seconds. `--delta_min_value 0` clamps negative changes to zero; `--delta_min_value false` disables the minimum. Other numeric minimums are also accepted. `min_vert_scale` is a non-negative minimum chart range and defaults to `0`, or `1` for integer monitors. Add `--format json` to print the created monitor object.
+
+## monitor update
+
+Update a monitor by exact ID. Only the selected fields are sent to xyOps, preserving unrelated settings. The ID and server-managed audit fields cannot be changed.
+
+```sh
+xy monitor update MONITOR_ID --title "Production CPU" --notes "Primary load metric"
+xy monitor update MONITOR_ID --source cpu.currentLoad --data_type float --suffix %
+xy monitor update MONITOR_ID --display false
+xy monitor update MONITOR_ID --delta true --divide_by_delta true --delta_min_value 0
+xy monitor update MONITOR_ID --delta_min_value false
+xy monitor update MONITOR_ID --groups '["GROUP_ID"]'
+xy monitor update MONITOR_ID --group GROUP_ID --group ANOTHER_GROUP_ID
+xy monitor update MONITOR_ID --groups.0 GROUP_ID
+xy monitor update MONITOR_ID --groups '[]' --data_match '' --suffix ''
+xy monitor update MONITOR_ID --sort_order 1
+xy monitor update --id MONITOR_ID --json @changes.json
+xy monitor update MONITOR_ID --display false --dry
+```
+
+The editable fields are the same as create, except `id` selects the monitor and `sort_order` can be set to an integer to change its position. Lower sort orders appear first. Supply negative numbers through a JSON file or stdin, as the command-line argument parser treats leading hyphens as options. A whole `--groups` list replaces the saved list, dotted paths edit existing indexes, and repeated `--group` options append IDs afterward. Use `--groups '[]'` to apply the monitor to all groups.
+
+`--dry` previews the outgoing request; `--format json` prints the API success response.
+
+## monitor test
+
+Evaluate a saved monitor or an unsaved expression against a server's current data, without changing the monitor. Select a server by exact ID or fuzzy title, hostname, or IP address. Saved monitors support ID or fuzzy title lookup, with optional source, data type, and regular expression overrides.
+
+```sh
+xy monitor test MONITOR_ID_OR_TITLE --server SERVER_ID_OR_TITLE
+xy monitor test --id MONITOR_ID --server SERVER_ID --source cpu.currentLoad
+xy monitor test --server SERVER_ID_OR_TITLE --source cpu.currentLoad --data_type float
+xy monitor test --server SERVER_ID --source '"42 workers"' --data_match '(\d+)' --data_type integer
+xy monitor test MONITOR_ID --server SERVER_ID --data_match '' --format json
+xy monitor test --server SERVER_ID --source '1 + 2' --dry
+```
+
+An unsaved expression defaults to `float`. Tests evaluate the source, apply `data_match` if set, and convert the result to the selected data type. They do not calculate changes between samples or apply delta settings. A successful zero is displayed as `0`; an expression that cannot be evaluated displays `No Value`. Invalid expression syntax or a regular expression that does not match produces an API error.
+
+JSON output preserves the API response: `{ "code": 0, "value": 37.5 }` or `{ "code": 0, "fail": true }`. Testing requires the `edit_monitors` privilege.
+
+## monitor delete
+
+Permanently delete a monitor by exact ID. Explicit confirmation is required.
+
+```sh
+xy monitor delete MONITOR_ID --confirm
+xy monitor delete --id MONITOR_ID --confirm
+xy monitor delete MONITOR_ID --confirm --dry
+```
+
+Review any alert expressions that refer to the monitor before deleting it. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
 
 ## events
 
