@@ -13,6 +13,8 @@ xy categories
 xy channels
 xy log xyOps --rows 100
 xy monitors
+xy event EVENT_ID --export event.json
+xy import event.json
 ```
 
 The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, and `monitors`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
@@ -43,9 +45,94 @@ xy help monitors
 xy help monitor
 xy help monitor create
 xy help monitor test
+xy help export
+xy help import
 ```
 
 # Command Reference
+
+## export
+
+Export an object to an xyOps Portable Data Format (XYPDF) file by adding `--export FILE` to its detail command. The file can be imported by the CLI or the xyOps web interface. Exact IDs take precedence over fuzzy titles.
+
+```sh
+xy event EVENT_ID_OR_TITLE --export event.json
+xy event get --id EVENT_ID --export event.json
+xy category CATEGORY_ID --export category.json
+xy bucket BUCKET_ID --export bucket.json
+xy monitor MONITOR_ID --export monitor.json.gz
+xy event EVENT_ID --export event.json --overwrite
+xy event EVENT_ID --export event.json --dry
+```
+
+Export supports all XYPDF object types:
+
+| Object | Command |
+|--------|---------|
+| Alert definition | `xy alert ALERT_ID --export alert.json` |
+| API key | `xy key KEY_ID --export key.json` |
+| Bucket metadata | `xy bucket BUCKET_ID --export bucket.json` |
+| Category | `xy category CATEGORY_ID --export category.json` |
+| Notification channel | `xy channel CHANNEL_ID --export channel.json` |
+| Event or workflow | `xy event EVENT_ID --export event.json` |
+| Server group | `xy group GROUP_ID --export group.json` |
+| Monitor | `xy monitor MONITOR_ID --export monitor.json` |
+| Plugin | `xy plugin PLUGIN_ID --export plugin.json` |
+| Role | `xy role ROLE_ID --export role.json` |
+| Tag | `xy tag TAG_ID --export tag.json` |
+| Web hook | `xy webhook WEB_HOOK_ID --export hook.json` |
+
+The export variant is available for every command above, even when its other resource commands have not yet been implemented. Use it with a single object's details, rather than a list, search, or mutation command. `--id` and `--title` selectors are also supported.
+
+Files are pretty-printed JSON. A `.gz` suffix enables gzip compression; use `.json.gz` for compatibility with the web interface. The destination directory must exist. Existing files are preserved unless you pass `--overwrite`. `--dry` prints the proposed payload without writing a file. `--format json` prints a result containing the output path, item count, and any dependency warnings.
+
+Exports omit `created`, `modified`, `revision`, `sort_order`, and `username`. Buckets include only their definition, without stored JSON data or uploaded files. API keys retain their `id`, stored `key` hash, and `mask` for restoration by xyOps. Alert exports contain definitions, rather than active alert invocations.
+
+**Event and workflow dependencies**
+
+Events and workflows export by themselves unless you select dependency types with `--deps`. Use a comma-separated list, repeated options, or `all`:
+
+```sh
+xy event EVENT_ID --export event.json --deps plugins,categories
+xy event WORKFLOW_ID --export workflow.json.gz --deps events,plugins,buckets
+xy event WORKFLOW_ID --export workflow.json --deps events --deps plugins
+xy event WORKFLOW_ID --export workflow.json --deps all
+```
+
+| Dependency | Included objects |
+|------------|------------------|
+| `events` | Events referenced by workflow event nodes, recursively. |
+| `plugins` | Event and workflow job plugins, plus plugins referenced by triggers and actions. |
+| `categories` | Event categories, excluding the built-in General category. |
+| `groups` | Server groups in event targets. Individual servers are not portable. |
+| `buckets` | Bucket metadata referenced by store and fetch actions. |
+| `tags` | Event tags and tags referenced by actions. |
+| `web_hooks` | Web hooks referenced by actions, excluding the built-in example hook. |
+
+These choices match the web interface. Workflow action nodes are included in dependency discovery. Stock event and job plugins are omitted. Only the selected dependency types are collected; references in categories, groups, and other included definitions are not recursively expanded. Shared dependencies appear once, and circular workflow references are handled without recursion errors. Missing selected dependencies are reported as warnings and omitted from the file.
+
+## import
+
+Read a plain JSON or gzip-compressed XYPDF file and preview its contents and planned API calls. **No changes are made until you add `--confirm`.** Review the complete data, including plugin scripts and event triggers, before importing files from another source.
+
+```sh
+xy import event.json
+xy import workflow.json.gz
+xy import workflow.json.gz --format json
+xy import workflow.json.gz --confirm
+xy import workflow.json.gz --confirm --dry
+xy import workflow.json.gz --confirm --format json
+```
+
+The file determines the object types and may contain any combination of the 12 types supported by `xy help export`. Workflows use the `event` item type. The CLI validates the wrapper, minimum xyOps version, item types, titles, IDs, and duplicate IDs before making changes. It accepts the same `version: "1.0"` wire format as the web interface, including the optional `xyops` minimum-version field.
+
+An exact matching ID selects an update; otherwise the CLI creates the object. Missing or empty IDs are generated by xyOps. Titles are not used to select updates. As in the web interface, updates merge the imported fields into the existing definition. Omitted fields remain unchanged, while included arrays replace their existing values. Audit metadata is removed before each API call.
+
+Import starts with the web interface's reverse file order, moving new dependencies ahead of the objects that need them. This also handles shared nested workflow dependencies. Circular dependencies among new objects are rejected during preview; references to existing definitions are allowed. Importing a bucket never writes or clears its stored data or files. API key definitions are passed through like other object types, including `id`, `key`, and `mask`; restoring a new key requires an xyOps version that preserves these fields on import.
+
+The preview identifies updates and events with active triggers. Confirmed imports preserve the settings in the file, so enabled schedules or other triggers can run automatically afterward. `--dry` always previews, even with `--confirm`.
+
+Import uses the normal create and update APIs with your configured credentials. Server-side validation and privileges still apply. If an API call fails, import stops and reports each item's result: `created`, `updated`, `failed`, or `pending`. Earlier successful changes remain in place; there is no automatic rollback. JSON reports include these results, and failed imports exit with a nonzero status.
 
 ## api
 
@@ -173,6 +260,7 @@ View either an alert definition or alert invocation. A bare selector is the shor
 xy alert ID_OR_TITLE
 xy alert get ID_OR_TITLE
 xy alert get ALERT_ID --format json
+xy alert ALERT_DEFINITION_ID --export alert.json
 ```
 
 Definition detail includes its expression, message, groups, monitor overlay, behavior flags, revision metadata, and configured actions. Invocation detail includes its definition, server, status, timing, evaluated message and expression, executed actions, snapshots, tickets, and jobs.
@@ -279,9 +367,10 @@ View a bucket definition together with all current JSON data and file metadata. 
 xy bucket BUCKET_ID_OR_TITLE
 xy bucket get BUCKET_ID_OR_TITLE
 xy bucket get BUCKET_ID --format json
+xy bucket BUCKET_ID --export bucket.json
 ```
 
-The JSON response contains `bucket`, `data`, and `files` properties.
+The JSON response contains `bucket`, `data`, and `files` properties. The `--export` variant writes only the bucket definition to XYPDF; see `xy help export`.
 
 ## bucket create
 
@@ -436,12 +525,13 @@ Updates and deletes require the exact internal Key ID. The authentication secret
 
 ## key get
 
-View one API Key's safe metadata, including its partial key, status, privileges, roles, rate limit, expiration, and last-used time. The stored key hash and plaintext secret are never displayed.
+View one API Key's safe metadata, including its partial key, status, privileges, roles, rate limit, expiration, and last-used time. Normal detail output omits the stored key hash and plaintext secret. The `--export` variant preserves the key definition for restoration; see `xy help export`.
 
 ```sh
 xy key KEY_ID_OR_TITLE
 xy key get KEY_ID_OR_TITLE
 xy key get KEY_ID --format json
+xy key KEY_ID --export key.json
 ```
 
 ## key create
@@ -546,6 +636,7 @@ xy category CAT_ID_OR_TITLE
 xy category get --id CAT_ID
 xy category get --title "My Category"
 xy category CAT_ID --format json
+xy category CAT_ID --export category.json
 xy events --category CAT_ID
 ```
 
@@ -657,6 +748,7 @@ xy channel CHANNEL_ID_OR_TITLE
 xy channel get --id CHANNEL_ID
 xy channel get --title "Operations"
 xy channel CHANNEL_ID --format json
+xy channel CHANNEL_ID --export channel.json
 ```
 
 ## channel create
@@ -770,6 +862,7 @@ xy monitor MONITOR_ID_OR_TITLE
 xy monitor get --id MONITOR_ID
 xy monitor get --title "CPU Usage"
 xy monitor MONITOR_ID --format json
+xy monitor MONITOR_ID --export monitor.json
 ```
 
 ## monitor create
@@ -885,9 +978,11 @@ xy event get ID_OR_TITLE
 xy event ID_OR_TITLE --queued
 xy event ID_OR_TITLE --upcoming
 xy event ID_OR_TITLE --completed
+xy event ID_OR_TITLE --export event.json
+xy event ID_OR_TITLE --export event.json --deps all
 ```
 
-`xy event ID_OR_TITLE` is the short form of `xy event get ID_OR_TITLE`.
+`xy event ID_OR_TITLE` is the short form of `xy event get ID_OR_TITLE`. See `xy help export` for XYPDF export options and dependency selection.
 
 ## event create
 

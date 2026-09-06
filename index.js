@@ -233,6 +233,16 @@ const app = {
 			}
 		}
 		
+		// Export is an explicit read-only variant, including portable object types
+		// whose full resource routers are not yet implemented. Do not let the flag
+		// become a search filter or an accidental field in a create/update request.
+		if (('export' in args) && (cmd != 'api')) {
+			await this.cacheConfig();
+			await this.cmd_export_object(cmd);
+			print("\n");
+			return;
+		}
+		
 		if (!this['cmd_' + cmd]) {
 			// allow user to swap first two args, if 2nd is known command
 			if (this['cmd_' + args.other[0]]) {
@@ -240,7 +250,7 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, import, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
@@ -353,6 +363,7 @@ Tools.mergeHashInto( app, require('./lib/categories.js') );
 Tools.mergeHashInto( app, require('./lib/channels.js') );
 Tools.mergeHashInto( app, require('./lib/log.js') );
 Tools.mergeHashInto( app, require('./lib/monitors.js') );
+Tools.mergeHashInto( app, require('./lib/transfer.js') );
 
 global.app = app;
 
