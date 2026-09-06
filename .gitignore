@@ -1,0 +1,7 @@
+agents
+prompt.md
+node_modules/
+work/
+.DS_Store
+temp*
+notes.md

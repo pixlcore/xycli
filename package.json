@@ -19,6 +19,9 @@
 	"keywords": [
 		"xyops", "cli"
 	],
+	"scripts": {
+		"test": "node test.js"
+	},
 	"dependencies": {
 		"@pixlcore/xyops-sdk": "^1.0.5",
 		"cli-highlight": "2.1.11",
