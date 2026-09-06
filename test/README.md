@@ -51,6 +51,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `log` | Log searches, latest rows, matching, column selection, native output |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |
+| `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
 | `transfer` | All portable object types, preview and confirmation, dependencies, gzip, validation, partial failures |
 | `transfer-apikey` | Export, deletion, import, and authentication with the original plaintext secret |
 | `transfer-workflow` | Fresh workflow migration with shared dependencies |
@@ -59,7 +60,7 @@ Pagination checks that require saved events, completed jobs, or alert history re
 
 ## Fixtures and Cleanup
 
-The mutating suites create uniquely named disposable objects and remove them in cleanup blocks, including after assertion failures. Test events have no active triggers, channels are never invoked, and monitor sources use constants. Temporary files live in private operating-system temp directories and are removed by native test hooks.
+The mutating suites create uniquely named disposable objects and remove them in cleanup blocks, including after assertion failures. Test events have no active triggers, channels are never invoked, monitor sources use constants, and Plugin definitions are never executed or attached to other objects. Temporary files live in private operating-system temp directories and are removed by native test hooks.
 
 API key tests keep plaintext secrets in memory. Export files contain the stored hash and mask, and are deleted after the test. Captured CLI output is omitted from process failure messages because it can contain credentials.
 

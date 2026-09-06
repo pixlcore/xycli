@@ -13,11 +13,12 @@ xy categories
 xy channels
 xy log xyOps --rows 100
 xy monitors
+xy plugins
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, and `monitors`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, and `plugins`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -45,6 +46,9 @@ xy help monitors
 xy help monitor
 xy help monitor create
 xy help monitor test
+xy help plugins
+xy help plugin
+xy help plugin create
 xy help export
 xy help import
 ```
@@ -939,6 +943,125 @@ xy monitor delete MONITOR_ID --confirm --dry
 ```
 
 Review any alert expressions that refer to the monitor before deleting it. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+
+## plugins
+
+List Plugin definitions alphabetically by title, including IDs, types, status, parameter counts, and modification times. Search text matches IDs, titles, executable commands, scripts, and notes.
+
+```sh
+xy plugins
+xy plugins SEARCH_TEXT
+xy plugins --type event
+xy plugins --type monitor --enabled true
+xy plugins --enabled false
+xy plugins --limit 10 --page 2
+xy plugins --format json
+```
+
+Supported Plugin types are `event`, `monitor`, `action`, and `scheduler`. Named filters can be combined. `--limit`, `--page`, and `--offset` page through the table. JSON output includes all matching Plugin definitions.
+
+## plugin
+
+View, create, update, or delete a Plugin. A bare ID or fuzzy title opens its details. Updates and deletes require an exact Plugin ID.
+
+```sh
+xy plugin PLUGIN_ID_OR_TITLE
+xy plugin get PLUGIN_ID_OR_TITLE
+xy plugin list
+xy plugin create --title "My Plugin" --type event --command node --script @plugin.js
+xy plugin update PLUGIN_ID --enabled false
+xy plugin delete PLUGIN_ID --confirm
+```
+
+xyOps supports four kinds of Plugin. Event Plugins run jobs, Monitor Plugins gather server metrics, Action Plugins respond to job or alert conditions, and Scheduler Plugins provide custom scheduling decisions.
+
+## plugin list
+
+List and filter Plugin definitions using the same options as `xy plugins`.
+
+```sh
+xy plugin list
+xy plugin list --type action --enabled true
+xy plugin list --limit 10 --page 2
+```
+
+## plugin get
+
+View a Plugin's executable, script summary, type-specific settings, notes, source, and revision metadata. Non-monitor Plugins also show their parameter definitions. Exact IDs take precedence over fuzzy title matches.
+
+```sh
+xy plugin PLUGIN_ID_OR_TITLE
+xy plugin get --id PLUGIN_ID
+xy plugin get --title "My Plugin"
+xy plugin PLUGIN_ID --format json
+xy plugin PLUGIN_ID --verbose
+xy plugin PLUGIN_ID --export plugin.json
+```
+
+Normal output summarizes the embedded script and shows a separate Plugin Script section without printing its contents. Add `--verbose` to display the complete syntax-highlighted script and expanded values for code, textarea, and JSON parameter defaults. The CLI first guesses the script language from the Plugin executable, then falls back to automatic detection.
+
+## plugin create
+
+Create an Event, Monitor, Action, or Scheduler Plugin. Every Plugin requires a title, type, and executable command. The default type is `event`, so `--type event` may be omitted. xyOps generates an ID unless you supply `--id`.
+
+```sh
+xy plugin create --title "My Event Plugin" --type event --command node --script @plugin.js
+xy plugin create --id cleanup --title "Cleanup" --command /bin/sh --script @cleanup.sh
+xy plugin create --title "Remote Runner" --type event --command node --runner true --kill all
+xy plugin create --title "CPU Sensor" --type monitor --command /bin/sh --script @sensor.sh --plugin_format json --groups '["GROUP_ID"]'
+xy plugin create --title "Fast Sensor" --type monitor --command node --quick true --group GROUP_ID
+xy plugin create --title "Notify Service" --type action --command python3 --script @notify.py
+xy plugin create --title "Business Calendar" --type scheduler --command node --script @calendar.js
+xy plugin create --title "Parameterized" --command node --param '{ "id":"name", "title":"Name", "type":"text", "value":"World" }'
+xy plugin create --title "Imported Parameters" --command node --params @params.json
+xy plugin create --json @plugin.json
+cat plugin.json | xy plugin create --json @-
+xy plugin create --title "Preview" --command node --dry
+```
+
+Common fields are `id`, `title`, `enabled`, `type`, `icon`, `command`, `script`, `uid`, `gid`, and `notes`. Use `--script @FILE` for source code or `--script @-` to read it from standard input. `command` contains the executable and optional arguments, without pipes or redirects. `uid` and `gid` select the Unix account used to run the process when supported.
+
+Event Plugins also accept `kill` with `none`, `parent`, or `all`, plus the `runner` boolean for remote job runners. Monitor Plugins accept `groups`, `plugin_format`, and `quick`; `plugin_format` is `text`, `json`, or `xml`, an empty group list means all groups, and `quick` also runs the Plugin through QuickMon every second. The option is named `plugin_format` because the global `--format` flag controls CLI output. Complete JSON request objects use the native `format` property. Action and Scheduler Plugins use the common fields and may define parameters.
+
+Non-monitor Plugins accept parameter definitions through `params` and `param`. `--params` supplies the complete JSON array, while each `--param` appends one object. Supported parameter types are `text`, `textarea`, `code`, `json`, `checkbox`, `select`, `bucket`, `system`, `hidden`, `toolset`, and `group`. xyOps validates each definition and any specialized configuration such as menus and toolsets. Add `--format json` to print the created Plugin object.
+
+## plugin update
+
+Update a Plugin by exact ID. Only selected top-level fields are sent to xyOps, preserving unrelated settings. A Plugin's ID and type cannot be changed after creation.
+
+```sh
+xy plugin update PLUGIN_ID --title "New Title" --notes "Updated notes"
+xy plugin update PLUGIN_ID --enabled false
+xy plugin update PLUGIN_ID --command node --script @plugin.js
+xy plugin update PLUGIN_ID --uid worker --gid workers
+xy plugin update PLUGIN_ID --params @params.json
+cat params.json | xy plugin update PLUGIN_ID --params @-
+xy plugin update PLUGIN_ID --param '{ "id":"foo", "title":"Foo", "type":"text", "value":"hello" }'
+xy plugin update PLUGIN_ID --params.0.title "New Parameter Title"
+xy plugin update PLUGIN_ID --params.0.required true
+xy plugin update PLUGIN_ID --params '[]'
+xy plugin update EVENT_PLUGIN_ID --kill parent --runner false
+xy plugin update MONITOR_PLUGIN_ID --groups '["GROUP_ID"]' --plugin_format json --quick true
+xy plugin update MONITOR_PLUGIN_ID --group GROUP_ID --group ANOTHER_GROUP_ID
+xy plugin update MONITOR_PLUGIN_ID --groups.0 GROUP_ID
+xy plugin update PLUGIN_ID --enabled false --dry
+```
+
+For non-monitor Plugins, a whole `--params` array replaces all parameter definitions, dotted paths edit existing zero-based indexes, and repeated `--param` options append definitions afterward. Use `[]` to clear the list or submit a replacement array without an item to remove it. When the options are combined, replacement happens first, followed by dotted edits and appends.
+
+For Monitor Plugins, `--groups` replaces the complete server-group list, dotted paths edit existing indexes, and repeated `--group` options append IDs without duplicates. Monitor Plugins do not support parameter definitions, and other Plugin types do not support monitor-only settings. `--dry` previews the outgoing request; `--format json` prints the API response.
+
+## plugin delete
+
+Permanently delete a Plugin by exact ID. Explicit confirmation is required.
+
+```sh
+xy plugin delete PLUGIN_ID --confirm
+xy plugin delete --id PLUGIN_ID --confirm
+xy plugin delete PLUGIN_ID --confirm --dry
+```
+
+Before deleting a Plugin, review events, workflows, monitors, triggers, and actions that may reference it. Deletion does not rewrite those dependent definitions. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
 
 ## events
 
