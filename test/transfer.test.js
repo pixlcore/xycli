@@ -150,7 +150,11 @@ test('transfer', async t => {
 			assert.equal(keyData.mask, seedKey.mask);
 		});
 		
-		await check('human preview has confirmation suggestion', () => assert.match(xy(['import', bundle]), /Preview only[\s\S]*--confirm/));
+		await check('human preview has warning toast and confirmation suggestion', () => {
+			const out = xy(['import', bundle]);
+			assert.match(out, /⚠️[\s\S]*Preview only\./);
+			assert.match(out, /Preview only[\s\S]*--confirm/);
+		});
 		
 		await check('confirm plus dry remains preview', () => assert.equal(json(['import', bundle, '--confirm', '--dry']).preview, true));
 		

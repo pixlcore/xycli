@@ -14,6 +14,7 @@ xy channels
 xy log xyOps --rows 100
 xy monitors
 xy plugins
+xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
@@ -49,6 +50,10 @@ xy help monitor test
 xy help plugins
 xy help plugin
 xy help plugin create
+xy help marketplace
+xy help marketplace search
+xy help marketplace get
+xy help marketplace install
 xy help export
 xy help import
 ```
@@ -943,6 +948,82 @@ xy monitor delete MONITOR_ID --confirm --dry
 ```
 
 Review any alert expressions that refer to the monitor before deleting it. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+
+## marketplace
+
+Search the xyOps Plugin Marketplace. The marketplace is hosted on GitHub and proxied through your xyOps server, so all requests use your configured server and API Key. Marketplace v1 contains Plugins only.
+
+```sh
+xy marketplace
+xy marketplace AI
+xy marketplace search backup
+xy marketplace --plugin_type event
+xy marketplace --author PixlCore
+xy marketplace --license MIT --requires npx
+xy marketplace --tags AI,Prompt
+xy marketplace --status installed
+xy marketplace --status not
+xy marketplace --sort_by modified --sort_dir desc
+xy marketplace --limit 10 --page 2
+xy marketplace --format json
+```
+
+Positional text or `--query` searches titles, descriptions, IDs, licenses, tags, and requirements. Plugin types are `event`, `monitor`, `action`, and `scheduler`. The `tags` and `requires` filters accept comma-separated values or repeated options, and all selected values must match. Status is either `installed` or `not`.
+
+The server performs filtering, sorting, and pagination. Sort fields are `title`, `author`, `license`, `plugin_type`, `created`, and `modified`; sort direction is `asc` or `desc`. JSON output contains the current page as an array of marketplace listing objects.
+
+## marketplace list
+
+List Marketplace Plugins using the same filters and pagination options as `xy marketplace`.
+
+```sh
+xy marketplace list
+xy marketplace list --plugin_type monitor
+xy marketplace list --status installed
+```
+
+## marketplace search
+
+Search Marketplace Plugins using the same filters and pagination options as `xy marketplace`.
+
+```sh
+xy marketplace search AI
+xy marketplace search backup --requires npx
+xy marketplace search --query notification --license MIT
+```
+
+## marketplace get
+
+View one Marketplace Plugin by its exact `AUTHOR/REPO` ID. The detail view includes listing metadata, installation status, available versions, requirements, tags, and the complete README rendered for the terminal. Images are omitted because terminals cannot display them.
+
+```sh
+xy marketplace pixlcore/xyplug-ai
+xy marketplace get pixlcore/xyplug-ai
+xy marketplace get pixlcore/xyplug-ai --version v1.0.9
+xy marketplace get --id pixlcore/xyplug-ai
+xy marketplace pixlcore/xyplug-ai --format json
+```
+
+The latest published version is shown by default. Use `--version` to read an older published version. JSON output includes `item`, `version`, and the original README Markdown in `text`, without removing image markup.
+
+## marketplace install
+
+Fetch, validate, and install one Marketplace Plugin by its exact `AUTHOR/REPO` ID. The command downloads the selected version's `xyops.json` XYPDF package and prints a friendly summary followed by the complete Plugin definition. Embedded scripts are shown separately with syntax highlighting so they are easy to review. **No Plugin is created or updated until you add `--confirm`.**
+
+```sh
+xy marketplace install pixlcore/xyplug-ai
+xy marketplace install pixlcore/xyplug-ai --version v1.0.9
+xy marketplace install pixlcore/xyplug-ai --confirm
+xy marketplace install pixlcore/xyplug-ai --version v1.0.9 --confirm
+xy marketplace install pixlcore/xyplug-ai --confirm --dry
+xy marketplace install pixlcore/xyplug-ai --confirm --format json
+```
+
+Marketplace v1 packages must be XYPDF version 1.0 files containing exactly one Plugin item. The CLI checks the minimum xyOps version, listing type, Plugin type, internal Plugin ID, and package structure before making changes. Server-managed audit fields and Plugin process credentials are removed, then the Plugin receives a `marketplace` object containing the marketplace ID and selected version.
+
+If the internal Plugin ID does not exist, installation uses `create_plugin`. If it already exists, installation uses `update_plugin`, just like the xyOps web interface. This is also how upgrades work. A preview explains whether the Plugin will be created or used to update the installed Plugin, and warns when the matching internal ID belongs to a local Plugin from another source. Explicit JSON formats retain the complete machine-readable preview envelope.
+
+Marketplace installation uses the normal Plugin privileges. The command does not execute or test the Plugin. Review its README, requirements, source repository, embedded script, and parameter definitions before confirming installation.
 
 ## plugins
 

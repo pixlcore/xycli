@@ -49,9 +49,12 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `categories` | CRUD, actions and limits, JSON input, validation, pagination, help |
 | `channels` | CRUD, recipients, indexed edits, filters, validation, help |
 | `log` | Log searches, latest rows, matching, column selection, native output |
+| `markdown` | Terminal rendering for inline formatting inside list items |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |
+| `marketplace` | Search, details, README rendering, install preview, confirmed install and upgrade, validation, help |
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |
 | `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
+| `toast` | Warning-box word wrapping and terminal-width limits |
 | `transfer` | All portable object types, preview and confirmation, dependencies, gzip, validation, partial failures |
 | `transfer-apikey` | Export, deletion, import, and authentication with the original plaintext secret |
 | `transfer-workflow` | Fresh workflow migration with shared dependencies |
@@ -61,6 +64,8 @@ Pagination checks that require saved events, completed jobs, or alert history re
 ## Fixtures and Cleanup
 
 The mutating suites create uniquely named disposable objects and remove them in cleanup blocks, including after assertion failures. Test events have no active triggers, channels are never invoked, monitor sources use constants, and Plugin definitions are never executed or attached to other objects. Temporary files live in private operating-system temp directories and are removed by native test hooks.
+
+The Marketplace suite installs and upgrades `pixlcore/xyplug-ai`, then deletes it without executing or attaching it to an Event. The suite requires this product to be uninstalled when the test begins and removes its own installation during cleanup.
 
 API key tests keep plaintext secrets in memory. Export files contain the stored hash and mask, and are deleted after the test. Captured CLI output is omitted from process failure messages because it can contain credentials.
 
