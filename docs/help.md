@@ -10,9 +10,10 @@ xy keys
 xy alerts
 xy buckets
 xy categories
+xy channels
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, and `categories`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, and `channels`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -32,6 +33,9 @@ xy help bucket write
 xy help categories
 xy help category
 xy help category create
+xy help channels
+xy help channel
+xy help channel create
 ```
 
 # Command Reference
@@ -595,6 +599,118 @@ xy category delete CAT_ID --confirm --dry
 ```
 
 `--dry` previews the request without deleting anything. `--format json` prints the API success response.
+
+## channels
+
+List notification channels alphabetically by title, including IDs, status, subscribed-user counts, daily caps, and modification times. Search text matches IDs, titles, notes, and email recipients.
+
+```sh
+xy channels
+xy channels SEARCH_TEXT
+xy channels --enabled false
+xy channels --user admin
+xy channels --title Production --enabled true
+xy channels --limit 10 --page 2
+xy channels --format json
+```
+
+Named filters can be combined. `--user` matches a complete username; repeat it to require multiple subscribed users. `--limit`, `--page`, and `--offset` page through the table. JSON output includes all matching channel definitions.
+
+## channel
+
+View, create, update, or delete a notification channel. A bare ID or fuzzy title opens its details. Updates and deletes require an exact channel ID.
+
+```sh
+xy channel CHANNEL_ID_OR_TITLE
+xy channel get CHANNEL_ID_OR_TITLE
+xy channel list
+xy channel create --title "Operations" --users admin
+xy channel update CHANNEL_ID --enabled false
+xy channel delete CHANNEL_ID --confirm
+```
+
+Channels bundle email recipients, in-app notifications, an optional web hook, and an optional follow-up event. They run when referenced by an event, category, or alert action. Creating or updating a channel only changes its configuration.
+
+## channel list
+
+List and filter notification channels using the same options as `xy channels`.
+
+```sh
+xy channel list
+xy channel list --user admin --enabled true
+xy channel list --limit 10 --page 2
+```
+
+## channel get
+
+View a channel's recipients, web hook, follow-up event, sound, daily cap, notes, and revision metadata. Exact IDs take precedence over fuzzy title matches.
+
+```sh
+xy channel CHANNEL_ID_OR_TITLE
+xy channel get --id CHANNEL_ID
+xy channel get --title "Operations"
+xy channel CHANNEL_ID --format json
+```
+
+## channel create
+
+Create a channel with a required title. Defaults are enabled, no recipients or follow-up actions, no sound, empty icon and notes, and an unlimited daily cap. xyOps generates the ID unless you supply `--id`.
+
+```sh
+xy channel create --title "Operations" --users admin
+xy channel create --title "On Call" --users 'admin,oncall' --email 'ops@example.com,sre@example.com'
+xy channel create --id production --title "Production" --user admin --user oncall
+xy channel create --title "Remediation" --web_hook WEB_HOOK_ID --run_event EVENT_ID
+xy channel create --title "Urgent" --users '["admin"]' --sound attention-3.mp3 --max_per_day 100
+xy channel create --title "Quiet" --enabled false --icon bullhorn-outline --notes "Staging notifications"
+xy channel create --json @channel.json
+cat channel.json | xy channel create --json @-
+xy channel create --title "Preview" --dry
+```
+
+Supported fields are `id`, `title`, `enabled`, `icon`, `users`, `email`, `web_hook`, `run_event`, `sound`, `max_per_day`, and `notes`. Use usernames in `users`, a comma-separated string for extra `email` recipients, and exact resource IDs for `web_hook` and `run_event`. `sound` is an optional `.mp3` filename available on your xyOps server.
+
+`--users` accepts a JSON array, a comma-separated string, or `@users.json`. Repeated `--user USERNAME` options append subscribed users without duplicates. `max_per_day` must be a non-negative integer; `0` means unlimited. The daily cap resets at midnight in the server's time zone. Add `--format json` to print the created channel object.
+
+To use the channel in a job or alert action:
+
+```sh
+xy event update EVENT_ID --action '{ "type":"channel", "enabled":true, "condition":"error", "channel_id":"CHANNEL_ID" }'
+xy alert update ALERT_ID --action '{ "type":"channel", "enabled":true, "condition":"alert_new", "channel_id":"CHANNEL_ID" }'
+```
+
+## channel update
+
+Update a channel by exact ID. Only the selected fields are sent to xyOps, preserving unrelated settings. The ID and server-managed audit fields cannot be changed.
+
+```sh
+xy channel update CHANNEL_ID --title "Production Operations" --notes "On-call team"
+xy channel update CHANNEL_ID --enabled false
+xy channel update CHANNEL_ID --users '["admin","oncall"]'
+xy channel update CHANNEL_ID --user admin --user oncall
+xy channel update CHANNEL_ID --users.0 admin
+xy channel update CHANNEL_ID --max_per_day 50 --sound attention-3.mp3
+xy channel update CHANNEL_ID --email '' --web_hook '' --run_event '' --sound ''
+xy channel update CHANNEL_ID --users '[]'
+xy channel update --id CHANNEL_ID --json @changes.json
+xy channel update CHANNEL_ID --enabled false --dry
+```
+
+`--users` replaces the complete user list, `--user` appends users, and dotted paths edit existing zero-based array indexes. When combined, replacement runs first, then indexed edits, then appends. Use `[]` to clear the user list, or a replacement array to remove selected users. Empty strings clear optional text fields and notification targets.
+
+Disabling a channel causes actions that reference it to skip its notifications. `--dry` previews the outgoing request; `--format json` prints the API success response.
+
+## channel delete
+
+Permanently delete a channel by exact ID. Explicit confirmation is required.
+
+```sh
+xy channel delete CHANNEL_ID --confirm
+xy channel delete --id CHANNEL_ID --confirm
+xy channel delete CHANNEL_ID --confirm --dry
+```
+
+Deletion does not remove references from events, workflows, categories, server groups, or alerts. Update those actions when replacing a channel. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
 
 ## events
 

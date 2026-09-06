@@ -240,7 +240,7 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, events, event, run, jobs, job, keys, key, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
@@ -350,6 +350,7 @@ Tools.mergeHashInto( app, require('./lib/apikey.js') );
 Tools.mergeHashInto( app, require('./lib/alerts.js') );
 Tools.mergeHashInto( app, require('./lib/buckets.js') );
 Tools.mergeHashInto( app, require('./lib/categories.js') );
+Tools.mergeHashInto( app, require('./lib/channels.js') );
 
 global.app = app;
 
