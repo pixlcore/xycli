@@ -11,6 +11,7 @@ xy alerts
 xy buckets
 xy categories
 xy channels
+xy log xyOps --rows 100
 ```
 
 The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, and `channels`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
@@ -36,6 +37,7 @@ xy help category create
 xy help channels
 xy help channel
 xy help channel create
+xy help log
 ```
 
 # Command Reference
@@ -947,3 +949,40 @@ Permanently delete a completed job, including its stored output and attached fil
 xy job delete JOB_ID
 xy job delete JOB_ID --dry
 ```
+
+## log
+
+Search current or archived xyOps system logs. This command requires an administrator API Key. The log name defaults to `xyOps`, and the row limit defaults to **100**.
+
+```sh
+xy log
+xy log xyOps --rows 100 --format json
+xy log xyOps --match "error"
+xy log xyOps --match "ERROR" --case
+xy log xyOps --match "error|warning" --regex
+xy log xyOps --cols hires_epoch,component,category,code,msg
+xy log xyOps --cols '["msg","data"]' --format json
+xy log xyOps --date 2026-09-04 --rows 100
+xy log xyOps --sort date_desc
+xy log --log xyOps --match "timeout" --dry
+```
+
+| Option | Description |
+| --- | --- |
+| `--rows N` | Return the last N matching rows, from 1 to 1000. Defaults to 100. |
+| `--match TEXT` | Search complete log lines for literal text. Omit to match all rows. |
+| `--regex` | Interpret `--match` as a regular expression. |
+| `--case` | Match case sensitively. Searches are case insensitive by default. |
+| `--cols LIST` | Select columns using comma-separated names or a JSON array. |
+| `--date YYYY-MM-DD` | Search the archive for a day in the server's time zone. Omit to search the current live log. |
+| `--sort date_asc` | Show the returned rows in file order, oldest first (the default). |
+| `--sort date_desc` | Reverse the returned rows to show newest first. |
+| `--format json` | Print the matching row objects as a JSON array. |
+
+Specify the log's base filename without its extension, such as `xyOps`. Standard column IDs are `hires_epoch`, `date`, `hostname`, `pid`, `component`, `category`, `code`, `msg`, and `data`; available columns follow your server configuration.
+
+Default output reconstructs native bracket-delimited log lines using all columns in the server's configured order. Brackets are gray and column values are color-coded, with full messages and data preserved. JSON output also defaults to all API columns and preserves their values, including the `data` field as a string. An explicit `--cols` selection applies to either output format. Column selection does not restrict which parts of each log line are searched.
+
+The API retains the last N matches, then the CLI applies display order. `--sort date_asc` does not select the earliest N matches. There is no numbered pagination, so use `--rows` rather than `--limit`, `--offset`, or `--page`. The summary's total log-row count includes non-matching lines; it is not a total match count.
+
+Missing logs or archives return an empty result. `--dry` previews the API request without searching. To view a particular job's output instead, use `xy job log JOB_ID`.
