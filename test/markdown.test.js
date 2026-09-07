@@ -31,3 +31,27 @@ test('markdown uses typographic bullets without changing ordered lists', () => {
 	assert.match(output, /2\. Second numbered item/);
 	assert.doesNotMatch(output, /^\s*\* /m);
 });
+
+test('markdown indents list levels by two spaces', () => {
+	const output = utils.markdown([
+		'- Parent item',
+		'    - Nested item'
+	].join('\n'));
+
+	// The first space is the global Markdown margin.  Each list level then
+	// contributes the configured two-space marked-terminal indentation.
+	assert.match(output, /^ {3}• Parent item$/m);
+	assert.match(output, /^ {5}• Nested item$/m);
+});
+
+test('markdown adds a left margin and reserves room for both sides', () => {
+	const output = utils.markdown('This is a deliberately long paragraph. '.repeat(12));
+	const terminalWidth = Math.min(process.stdout.columns || 80, 120);
+
+	// Every rendered line receives one visible leading space.  marked-terminal
+	// reflows against a width reduced by two, leaving the opposite margin free.
+	output.split('\n').forEach( line => {
+		assert.match(line, /^ /);
+		assert.ok(line.length <= terminalWidth - 1);
+	});
+});

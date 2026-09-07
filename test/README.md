@@ -49,7 +49,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `categories` | CRUD, actions and limits, JSON input, validation, pagination, help |
 | `channels` | CRUD, recipients, indexed edits, filters, validation, help |
 | `log` | Log searches, latest rows, matching, column selection, native output |
-| `markdown` | Terminal rendering for inline formatting inside list items |
+| `markdown` | Terminal rendering, inline formatting inside list items, typographic bullets, and output margins |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |
 | `marketplace` | Search, details, README rendering, install preview, confirmed install and upgrade, validation, help |
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |

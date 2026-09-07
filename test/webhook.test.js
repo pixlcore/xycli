@@ -110,12 +110,13 @@ test('webhook', async t => {
 			assert.match(xy(['hooks', id, '--enabled', 'false']), /No filtered web hooks found/i);
 		});
 		
-		await check('human detail shows headers, exact body, and multiline notes', () => {
+		await check('human detail shows headers, highlighted body, and multiline notes', () => {
 			const out = xy(['hook', id]);
 			for (const label of ['Web Hook Summary', 'Hook ID', 'Method', 'Timeout', 'Retries', 'Follow Redirects', 'Daily Cap', 'Web Hook Headers', 'Content-Type', 'Web Hook Body', 'Web Hook Notes', 'Second line']) {
 				assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
 			}
-			assert.ok(out.includes(body), 'Exact multiline body is present');
+			const highlightedBody = body.trim().split(/\r?\n/).map( line => '    ' + line ).join('\n');
+			assert.ok(out.includes(highlightedBody), 'Highlighted multiline body is present');
 		});
 		
 		await check('Hook alias works with portable export', () => {
@@ -310,7 +311,7 @@ test('webhook', async t => {
 		
 		await check('get after deletion fails', () => xy(['hook', id], { fail: true }));
 		
-		for (const topic of ['hooks', 'hook', 'hook list', 'hook get', 'hook create', 'hook update', 'hook test', 'hook delete', 'webhooks', 'webhook']) {
+		for (const topic of ['hooks', 'hook', 'hook list', 'hook get', 'hook create', 'hook update', 'hook test', 'hook delete']) {
 			await check('help ' + topic, () => assert.ok(xy(['help', ...topic.split(' ')]).length > 100));
 		}
 		

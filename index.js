@@ -351,7 +351,7 @@ const app = {
 		
 		if (heading == 'help') heading = 'overview';
 		println( "\n " + this.color('theme').bold( 'HELP: ' + heading.toUpperCase() ) );
-		println( "\n" + this.markdown( matches[4].trim() ).trim() );
+		println( "\n" + this.markdown( matches[4].trim() ).trimEnd() );
 	},
 	
 	dieUsage(heading) {
