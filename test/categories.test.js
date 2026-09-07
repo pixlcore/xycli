@@ -72,6 +72,13 @@ test('categories', async t => {
 			assert.match(detail, /Max Run Time/);
 		});
 		
+		await check('human update shows target and parsed data', () => {
+			const output = xy(['category', 'update', id, '--notes', 'Preview', '--dry']);
+			assert.match(output, /UPDATE CATEGORY/);
+			assert.match(output, new RegExp('Category ID:\\s+' + id));
+			assert.match(output, /UPDATE DATA[\s\S]*"notes": "Preview"/);
+		});
+		
 		preview = json(['category', 'update', id, '--notes', 'Preview', '--dry']);
 		
 		await check('sparse update request excludes unrelated metadata', () => assert.deepEqual(preview, { id, notes: 'Preview' }));
@@ -144,6 +151,14 @@ test('categories', async t => {
 		await check('named color survives direct update', () => assert.equal(json(['category', id]).color, 'purple'));
 		
 		const revision = (await get()).revision;
+		await check('unconfirmed delete shows target and warning toast', () => {
+			for (const args of [['delete', id], ['delete', id, '--confirm', 'false']]) {
+				const output = xy(['category', ...args]);
+				assert.match(output, /DELETE CATEGORY/);
+				assert.match(output, /⚠️[\s\S]*Please confirm the category delete/);
+			}
+		});
+		
 		for (const args of [
 			['update', id, '--actions.99.enabled', 'true'],
 			['update', id, '--actions.0.__proto__.polluted', 'true'],
@@ -158,8 +173,6 @@ test('categories', async t => {
 			['update', id, '--id', 'general', '--notes', 'Wrong target'],
 			['update', title, '--enabled', 'true'],
 			['update', id],
-			['delete', id],
-			['delete', id, '--confirm', 'false'],
 			['delete', title, '--confirm']
 		]) {
 			await check('reject ' + args.slice(0, 3).join(' '), () => xy(['category', ...args], { fail: true }));

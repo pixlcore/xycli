@@ -74,6 +74,13 @@ test('monitors', async t => {
 			for (const label of ['Monitor Summary', 'Hidden', 'Source', 'Data Match', 'Delta Min', 'Sort Order', 'Revision']) assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
 		});
 		
+		await check('human update shows target and parsed data', () => {
+			const out = xy(['monitor', 'update', id, '--notes', 'Preview', '--dry']);
+			assert.match(out, /UPDATE MONITOR/);
+			assert.match(out, new RegExp('Monitor ID:\\s+' + id));
+			assert.match(out, /UPDATE DATA[\s\S]*"notes": "Preview"/);
+		});
+		
 		await check('sparse dry update', () => assert.deepEqual(json(['monitor', 'update', id, '--notes', 'Preview', '--dry']), { notes: 'Preview', id }));
 		
 		await check('dry update leaves revision', () => assert.equal(json(['monitor', id]).revision, 1));
@@ -139,6 +146,14 @@ test('monitors', async t => {
 		await check('all-group monitors included in group filter', () => assert.equal(json(['monitors', title, '--group', group.id]).length, 1));
 		
 		const revision = json(['monitor', id]).revision;
+		await check('unconfirmed delete shows target and warning toast', () => {
+			for (const args of [['delete', id], ['delete', id, '--confirm', 'false']]) {
+				const out = xy(['monitor', ...args]);
+				assert.match(out, /DELETE MONITOR/);
+				assert.match(out, /⚠️[\s\S]*Please confirm the monitor delete/);
+			}
+		});
+		
 		for (const args of [
 			['update', id, '--groups.99', group.id], ['update', id, '--groups.__proto__.x', 'bad'],
 			['update', id, '--groups', '{}'], ['update', id, '--groups', '[5]'], ['update', id, '--group', ''],
@@ -147,7 +162,7 @@ test('monitors', async t => {
 			['update', id, '--sort_order', '1.5'], ['update', id, '--data_type', 'string'], ['update', id, '--data_match', '['],
 			['update', id, '--revision', '99'], ['update', id, '--enabled', 'false'], ['update', id],
 			['update', title, '--notes', 'wrong'], ['update', id, '--id', 'cpu_usage', '--notes', 'wrong'],
-			['delete', id], ['delete', id, '--confirm', 'false'], ['delete', title, '--confirm'],
+			['delete', title, '--confirm'],
 			['create', '--title', title], ['create', '--title', title, '--source', 'cpu.('],
 			['test', id], ['test', '--server', server.id], ['test', id, '--server', 'missing_test_server'],
 			['test', id, '--server', server.id, '--source', 'cpu.('],

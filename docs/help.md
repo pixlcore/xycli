@@ -1310,7 +1310,7 @@ xy job log JOB_ID
 xy job run JOB_ID --follow
 xy job resume JOB_ID
 xy job abort JOB_ID
-xy job delete JOB_ID
+xy job delete JOB_ID --confirm
 ```
 
 ## job get
@@ -1378,8 +1378,8 @@ xy job abort JOB_ID --dry
 Permanently delete a completed job, including its stored output and attached files. Active jobs must be aborted and allowed to finish before they can be deleted.
 
 ```sh
-xy job delete JOB_ID
-xy job delete JOB_ID --dry
+xy job delete JOB_ID --confirm
+xy job delete JOB_ID --confirm --dry
 ```
 
 ## log

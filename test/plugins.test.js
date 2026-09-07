@@ -175,6 +175,13 @@ test('plugins', async t => {
 			assert.ok(!out.includes('PLUGIN PARAMETERS'));
 		});
 		
+		await check('human update shows target and parsed data', () => {
+			const out = xy(['plugin', 'update', eventID, '--notes', 'Preview', '--dry']);
+			assert.match(out, /UPDATE PLUGIN/);
+			assert.match(out, new RegExp('Plugin ID:\\s+' + eventID));
+			assert.match(out, /UPDATE DATA[\s\S]*"notes": "Preview"/);
+		});
+		
 		await check('sparse dry update excludes unrelated fields', () => {
 			assert.deepEqual(json(['plugin', 'update', eventID, '--notes', 'Preview', '--dry']), { notes: 'Preview', id: eventID });
 			assert.deepEqual(json(['plugin', 'update', monitorID, '--notes', 'Preview', '--dry']), { notes: 'Preview', id: monitorID });
@@ -245,6 +252,14 @@ test('plugins', async t => {
 		
 		const eventRevision = json(['plugin', eventID]).revision;
 		const monitorRevision = json(['plugin', monitorID]).revision;
+		await check('unconfirmed delete shows target and warning toast', () => {
+			for (const args of [['delete', eventID], ['delete', eventID, '--confirm', 'false']]) {
+				const out = xy(['plugin', ...args]);
+				assert.match(out, /DELETE PLUGIN/);
+				assert.match(out, /⚠️[\s\S]*Please confirm the Plugin delete/);
+			}
+		});
+		
 		const rejected = [
 			['update', eventID, '--type', 'action'],
 			['update', eventID, '--params.99.title', 'Bad'],
@@ -264,8 +279,6 @@ test('plugins', async t => {
 			['update', eventID],
 			['update', title + ' Event', '--notes', 'Wrong selector'],
 			['update', eventID, '--id', actionID, '--notes', 'Wrong ID'],
-			['delete', eventID],
-			['delete', eventID, '--confirm', 'false'],
 			['delete', title + ' Event', '--confirm']
 		];
 		

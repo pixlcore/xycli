@@ -77,6 +77,13 @@ test('channels', async t => {
 			for (const label of ['Notification Channel Summary', 'Users', 'Web Hook', 'Run Event', 'Sound', 'Daily Cap', 'Revision']) assert.ok(out.toLowerCase().includes(label.toLowerCase()));
 		});
 		
+		await check('human update shows target and parsed data', () => {
+			const out = xy(['channel', 'update', id, '--notes', 'Preview', '--dry']);
+			assert.match(out, /UPDATE NOTIFICATION CHANNEL/);
+			assert.match(out, new RegExp('Channel ID:\\s+' + id));
+			assert.match(out, /UPDATE DATA[\s\S]*"notes": "Preview"/);
+		});
+		
 		await check('sparse dry update excludes unrelated fields', () => assert.deepEqual(json(['channel', 'update', id, '--notes', 'Preview', '--dry']), { notes: 'Preview', id }));
 		
 		await check('dry update keeps revision', () => assert.equal(json(['channel', id]).revision, 1));
@@ -121,6 +128,14 @@ test('channels', async t => {
 		});
 		
 		const revision = json(['channel', id]).revision;
+		await check('unconfirmed delete shows target and warning toast', () => {
+			for (const args of [['delete', id], ['delete', id, '--confirm', 'false']]) {
+				const out = xy(['channel', ...args]);
+				assert.match(out, /DELETE NOTIFICATION CHANNEL/);
+				assert.match(out, /⚠️[\s\S]*Please confirm the notification channel delete/);
+			}
+		});
+		
 		for (const args of [
 			['update', id, '--users.99', 'admin'], ['update', id, '--users.__proto__.x', 'bad'],
 			['update', id, '--users', '{}'], ['update', id, '--users', '[5]'], ['update', id, '--user', ''],
@@ -128,7 +143,7 @@ test('channels', async t => {
 			['update', id, '--max_per_day', '1.5'], ['update', id, '--sound', 'bad.wav'], ['update', id, '--email', 'true'],
 			['update', id, '--revision', '99'], ['update', id, '--unknown', 'x'], ['update', id],
 			['update', title, '--notes', 'wrong'], ['update', id, '--id', 'sev1', '--notes', 'wrong'],
-			['delete', id], ['delete', id, '--confirm', 'false'], ['delete', title, '--confirm']
+			['delete', title, '--confirm']
 		]) await check('reject ' + args.slice(0,3).join(' '), () => xy(['channel', ...args], { fail: true }));
 		
 		await check('rejected requests leave revision unchanged', () => assert.equal(json(['channel', id]).revision, revision));
