@@ -23,7 +23,7 @@ xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, `tags`, `tickets`, and `hooks`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+Use plural commands such as `events`, `jobs`, and `tickets` to browse collections, and singular commands such as `event`, `job`, and `ticket` to work with one item. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown. You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -110,11 +110,11 @@ Export supports all XYPDF object types:
 | Tag | `xy tag TAG_ID --export tag.json` |
 | Web hook | `xy hook WEB_HOOK_ID --export hook.json` |
 
-The export variant is available for every command above, even when its other resource commands have not yet been implemented. Use it with a single object's details, rather than a list, search, or mutation command. `--id` and `--title` selectors are also supported.
+Use `--export` with a single object's detail command rather than a list, search, or mutation command. `--id` and `--title` selectors are also supported.
 
-Files are pretty-printed JSON. A `.gz` suffix enables gzip compression; use `.json.gz` for compatibility with the web interface. The destination directory must exist. Existing files are preserved unless you pass `--overwrite`. `--dry` prints the proposed payload without writing a file. `--format json` prints a result containing the output path, item count, and any dependency warnings.
+Files are pretty-printed JSON. A `.gz` suffix enables gzip compression; use `.json.gz` for compatibility with the web interface. The destination directory must exist. Existing files are preserved unless you pass `--overwrite`. `--dry` shows what would be written without creating a file. `--format json` prints the output path, item count, and any dependency warnings.
 
-Exports omit `created`, `modified`, `revision`, `sort_order`, and `username`. Buckets include only their definition, without stored JSON data or uploaded files. API keys retain their `id`, stored `key` hash, and `mask` for restoration by xyOps. Alert exports contain definitions, rather than active alert invocations.
+Exports contain reusable definitions rather than history and audit details. Buckets do not include stored JSON data or uploaded files, API Key exports never reveal the plaintext secret, and Alert exports contain definitions rather than active alert invocations.
 
 **Event and workflow dependencies**
 
@@ -137,11 +137,11 @@ xy event WORKFLOW_ID --export workflow.json --deps all
 | `tags` | Event tags and tags referenced by actions. |
 | `web_hooks` | Web hooks referenced by actions, excluding the built-in example hook. |
 
-These choices match the web interface. Workflow action nodes are included in dependency discovery. Stock event and job plugins are omitted. Only the selected dependency types are collected; references in categories, groups, and other included definitions are not recursively expanded. Shared dependencies appear once, and circular workflow references are handled without recursion errors. Missing selected dependencies are reported as warnings and omitted from the file.
+These choices match the web interface. Stock event and job Plugins are omitted. Only the selected dependency types are included, shared dependencies appear once, and linked workflows are followed safely. Missing dependencies are reported as warnings and omitted from the file.
 
 ## import
 
-Read a plain JSON or gzip-compressed XYPDF file and preview its contents and planned API calls. **No changes are made until you add `--confirm`.** Review the complete data, including plugin scripts and event triggers, before importing files from another source.
+Read a plain JSON or gzip-compressed XYPDF file and preview its contents and planned changes. **No changes are made until you add `--confirm`.** Review the complete data, including Plugin scripts and event triggers, before importing files from another source.
 
 ```sh
 xy import event.json
@@ -152,15 +152,15 @@ xy import workflow.json.gz --confirm --dry
 xy import workflow.json.gz --confirm --format json
 ```
 
-The file determines the object types and may contain any combination of the 12 types supported by `xy help export`. Workflows use the `event` item type. The CLI validates the wrapper, minimum xyOps version, item types, titles, IDs, and duplicate IDs before making changes. It accepts the same `version: "1.0"` wire format as the web interface, including the optional `xyops` minimum-version field.
+The file determines the object types and may contain any combination of the 12 types supported by `xy help export`. Before making changes, the preview checks the file format, required xyOps version, object types, titles, IDs, and duplicate IDs.
 
-An exact matching ID selects an update; otherwise the CLI creates the object. Missing or empty IDs are generated by xyOps. Titles are not used to select updates. As in the web interface, updates merge the imported fields into the existing definition. Omitted fields remain unchanged, while included arrays replace their existing values. Audit metadata is removed before each API call.
+An exact matching ID updates the existing object; otherwise a new object is created. Missing or empty IDs are generated by xyOps. Titles are not used to select updates. Omitted fields remain unchanged, while included arrays replace their existing values.
 
-Import starts with the web interface's reverse file order, moving new dependencies ahead of the objects that need them. This also handles shared nested workflow dependencies. Circular dependencies among new objects are rejected during preview; references to existing definitions are allowed. Importing a bucket never writes or clears its stored data or files. API key definitions are passed through like other object types, including `id`, `key`, and `mask`; restoring a new key requires an xyOps version that preserves these fields on import.
+Dependencies are imported before the objects that use them. Circular dependencies among new objects are rejected during preview, while references to existing definitions are allowed. Importing a Bucket never writes or clears its stored data or files. Restoring an API Key requires a compatible xyOps version and never reveals its plaintext secret.
 
 The preview identifies updates and events with active triggers. Confirmed imports preserve the settings in the file, so enabled schedules or other triggers can run automatically afterward. `--dry` always previews, even with `--confirm`.
 
-Import uses the normal create and update APIs with your configured credentials. Server-side validation and privileges still apply. If an API call fails, import stops and reports each item's result: `created`, `updated`, `failed`, or `pending`. Earlier successful changes remain in place; there is no automatic rollback. JSON reports include these results, and failed imports exit with a nonzero status.
+Your configured permissions still apply during import. If an item fails, import stops and reports each item as `created`, `updated`, `failed`, or `pending`. Earlier successful changes remain in place; there is no automatic rollback. JSON output includes these results, and failed imports exit with a nonzero status.
 
 ## api
 
@@ -226,7 +226,7 @@ xy dashboard --upcoming
 
 ## alerts
 
-List alert definitions, or search alert invocations when the next word is `search`. This keeps the common command short while making the resource type clear from the operation and output heading.
+List Alert definitions, or search Alert invocations when the next word is `search`.
 
 ```sh
 xy alerts
@@ -263,7 +263,7 @@ xy alerts search --format json
 
 `--alert`, `--server`, and `--group` accept an ID or fuzzy title. Built-in date ranges are `now`, `hour`, `lasthour`, `today`, `yesterday`, `month`, `lastmonth`, `year`, `lastyear`, and `older`. Newest invocations are shown first unless `--oldest` or `--sort asc` is supplied.
 
-Any other named option becomes a native `field:value` search criterion. This provides access to new indexed fields without requiring a CLI release.
+Other named options may be used for additional searchable fields.
 
 ## alert
 
@@ -278,7 +278,7 @@ xy alert test DEFINITION_ID --server SERVER_ID_OR_TITLE
 xy alert delete ALERT_ID --confirm
 ```
 
-Get and delete can refer to either resource type. The CLI checks the local alert-definition list for an exact ID first. If no definition matches, it treats the ID as an invocation. Get also falls back to a fuzzy definition title when neither exact lookup succeeds.
+Get and delete can refer to either resource type. Use an exact Alert ID for an invocation, or an exact definition ID or fuzzy definition title for a definition.
 
 ## alert get
 
@@ -326,7 +326,7 @@ xy alert update DEFINITION_ID --delete actions.0.params.example
 xy alert update DEFINITION_ID --notes "Preview" --dry
 ```
 
-Dotted options preserve sibling properties by applying changes to the loaded definition before sending it back to xyOps. Repeat `--delete PATH` to remove nested object properties. Paths are strict, so missing properties and attempts to delete array elements are rejected.
+Dotted options preserve other nested values. Repeat `--delete PATH` to remove nested object properties. Paths are strict, so missing properties and attempts to delete array elements are rejected.
 
 ## alert test
 
@@ -351,11 +351,11 @@ xy alert delete INVOCATION_ID --confirm
 xy alert delete ALERT_ID --confirm --dry
 ```
 
-Deleting an invocation removes only that historical record. Deleting a definition also clears its active and warm state, then starts background deletion of every invocation created from it. The CLI displays this cascading behavior before confirmation and in the success message.
+Deleting an invocation removes only that historical record. Deleting a definition also removes its current state and invocation history.
 
 ## buckets
 
-List storage bucket definitions and their safe metadata. Bucket data and file lists are loaded only when viewing one bucket.
+List storage Bucket definitions and their metadata. Use `bucket get` to view a Bucket's JSON data and files.
 
 ```sh
 xy buckets
@@ -385,7 +385,7 @@ xy bucket empty BUCKET_ID --data --files --confirm
 xy bucket delete BUCKET_ID --confirm
 ```
 
-The mutation commands deliberately separate metadata, data, and files. Writing data, uploading files, deleting a file, and emptying contents use the dedicated xyOps content APIs, so those actions do not change the bucket revision or modified date.
+Bucket metadata, JSON data, and files have separate commands. Use `bucket update` for metadata, `bucket write` for JSON data, and the file commands for attachments.
 
 ## bucket get
 
@@ -398,7 +398,7 @@ xy bucket get BUCKET_ID --format json
 xy bucket BUCKET_ID --export bucket.json
 ```
 
-The JSON response contains `bucket`, `data`, and `files` properties. The `--export` variant writes only the bucket definition to XYPDF; see `xy help export`.
+JSON output contains `bucket`, `data`, and `files`. The `--export` variant writes only the Bucket definition to XYPDF; see `xy help export`.
 
 ## bucket create
 
@@ -416,8 +416,6 @@ xy bucket create --title "With Files" --file report.csv --file summary.txt
 xy bucket create --title "Preview" --data @data.json --file report.csv --dry
 ```
 
-Initial data is stored as part of revision 1. Files are uploaded through the dedicated file API immediately after the bucket is created. If a file upload fails, the new bucket remains available so the upload can be retried with `bucket upload`.
-
 ## bucket update
 
 Update bucket metadata using the exact internal Bucket ID.
@@ -429,11 +427,11 @@ xy bucket update BUCKET_ID --icon archive --notes "Production releases"
 xy bucket update BUCKET_ID --notes "Preview" --dry
 ```
 
-This command only accepts `title`, `enabled`, `icon`, and `notes`. Use `bucket write` for JSON data and the file commands for file contents. Metadata updates advance the bucket revision and modified date.
+This command only accepts `title`, `enabled`, `icon`, and `notes`. Use `bucket write` for JSON data and the file commands for file contents.
 
 ## bucket write
 
-Shallow-merge a JSON object into a bucket's existing data using the dedicated data API. The exact internal Bucket ID is required.
+Merge a JSON object into a Bucket's existing data. The exact internal Bucket ID is required.
 
 ```sh
 xy bucket write BUCKET_ID --data.status ready --data.build 42
@@ -444,7 +442,7 @@ cat request.json | xy bucket write BUCKET_ID --json @-
 xy bucket write BUCKET_ID --data @data.json --format json
 ```
 
-`--data @-` treats the piped object as the bucket data itself. The `--json` forms accept a complete request object containing a `data` property. As with the xyOps API, this is a shallow merge. Existing top-level keys not present in the input are preserved.
+`--data @-` treats the piped object as the Bucket data itself. The `--json` forms expect an object containing a `data` property. This is a shallow merge, so existing top-level keys not present in the input are preserved.
 
 ## bucket upload
 
@@ -494,8 +492,6 @@ xy bucket file delete BUCKET_ID FILE_ID --confirm
 xy bucket file delete BUCKET_ID report.csv --confirm --dry
 ```
 
-Deleting a file uses the dedicated content API and does not advance the bucket revision or modified date.
-
 ## bucket empty
 
 Permanently clear all data, all files, or both while keeping the bucket definition. Explicit confirmation is required.
@@ -507,8 +503,6 @@ xy bucket empty BUCKET_ID --data --files --confirm
 xy bucket empty BUCKET_ID --all --confirm
 xy bucket empty BUCKET_ID --all --confirm --dry
 ```
-
-Emptying contents uses the dedicated content API and does not advance the bucket revision or modified date.
 
 ## bucket delete
 
@@ -648,7 +642,7 @@ xy secret decrypt SECRET_VAULT_ID --confirm
 xy secret delete SECRET_VAULT_ID --confirm
 ```
 
-Server-side privileges determine which operations the configured API Key may perform. xyOps requires administrator access for create, update, decrypt, and delete operations.
+Creating, updating, decrypting, and deleting Secret Vaults requires an administrator API Key.
 
 ## secret list
 
@@ -694,13 +688,13 @@ xy secret create --title "Empty Vault"
 xy secret create --title "Preview" --fields @secrets.json --dry
 ```
 
-Complete assignment lists are accepted through `events`, `categories`, `plugins`, and `web_hooks` as comma-separated strings or JSON arrays. The singular `event`, `category`, `plugin`, `web_hook`, and `hook` options append one or more IDs and may be repeated. Every assignment is validated against the objects visible to the configured API Key.
+Complete assignment lists are accepted through `events`, `categories`, `plugins`, and `web_hooks` as comma-separated strings or JSON arrays. The singular `event`, `category`, `plugin`, `web_hook`, and `hook` options append one or more IDs and may be repeated. Assignments must refer to objects visible to the configured API Key.
 
-Variable names use the portable environment-variable form: letters, digits, and underscores, with a letter or underscore first. Names must be unique within a vault. Dry-run and verbose request output replaces every variable value with `[REDACTED]`. `--format json` returns safe vault metadata only.
+Variable names use the portable environment-variable form: letters, digits, and underscores, with a letter or underscore first. Names must be unique within a vault. Dry-run and verbose previews replace every variable value with `[REDACTED]`. `--format json` returns safe vault metadata only.
 
 ## secret update
 
-Update a Secret Vault by exact ID. Metadata-only changes are sparse and preserve the encrypted variables and unrelated settings.
+Update a Secret Vault by exact ID. Omitted settings and encrypted variables remain unchanged.
 
 ```sh
 xy secret update SECRET_VAULT_ID --title "New Title" --notes "Updated notes"
@@ -713,7 +707,7 @@ xy secret update SECRET_VAULT_ID --fields '[]'
 xy secret update SECRET_VAULT_ID --notes "Preview" --dry
 ```
 
-When `fields` is supplied, it must contain the complete replacement array. Individual variable updates, dotted field paths, and a singular `field` option are intentionally unsupported because updating one value requires decrypting the existing vault first. Omitting `fields` leaves all encrypted values untouched. Supplying `[]` removes every variable.
+When `fields` is supplied, it must contain the complete replacement array. Individual variable updates, dotted field paths, and a singular `field` option are not supported. Omitting `fields` leaves all encrypted values untouched. Supplying `[]` removes every variable.
 
 Complete assignment lists replace the saved lists. Singular assignment aliases append to the saved list without duplicates. Use an empty array to clear a list. Dry-run and verbose output always redact variable values.
 
@@ -729,7 +723,7 @@ xy secret decrypt SECRET_VAULT_ID --confirm --dry
 
 Human-readable output gives each variable its own titled section and prints the value exactly, without a table or surrounding box. This preserves multiline values for selection and copying. JSON output is an array of plaintext `{ "name", "value" }` objects. Treat both forms as sensitive and avoid redirecting them to an insecure destination.
 
-Without `--confirm`, the command displays the target vault and a warning without calling the decrypt API. `--dry` also avoids the API call and therefore does not create a secret-access audit event. Verbose API-response diagnostics are redacted, while the final confirmed decrypt output intentionally contains plaintext.
+Without `--confirm`, the command displays the target vault and a warning without decrypting it. `--dry` does not decrypt the vault or create a secret-access audit event. Verbose diagnostics are redacted, while the final confirmed output intentionally contains plaintext.
 
 ## secret delete
 
@@ -741,7 +735,7 @@ xy secret delete --id SECRET_VAULT_ID --confirm
 xy secret delete SECRET_VAULT_ID --confirm --dry
 ```
 
-Deletion cannot be undone. Review Events, Categories, Plugins, and Web Hooks that may rely on the vault before deleting it. `--dry` previews the request without deleting anything.
+Deletion cannot be undone. Review Events, Categories, Plugins, and Web Hooks that may rely on the vault before deleting it. `--dry` previews the deletion without making changes.
 
 ## tags
 
@@ -814,7 +808,7 @@ Supported creation fields are `id`, `title`, `icon`, and `notes`. Tag IDs contai
 
 ## tag update
 
-Update a Tag by exact ID. Only the selected fields are sent to xyOps, so omitted properties remain unchanged.
+Update a Tag by exact ID. Omitted fields remain unchanged.
 
 ```sh
 xy tag update TAG_ID --title "New Title"
@@ -826,7 +820,7 @@ cat tag-update.json | xy tag update TAG_ID --json @-
 xy tag update TAG_ID --notes "Preview" --dry
 ```
 
-Editable fields are `title`, `icon`, and `notes`. The Tag ID and server-managed audit fields cannot be changed. Notes may contain multiple lines. `--dry` previews the sparse outgoing request, and `--format json` prints the API success response.
+Editable fields are `title`, `icon`, and `notes`. The Tag ID cannot be changed. Notes may contain multiple lines. `--dry` previews the changes, and `--format json` prints the updated Tag.
 
 ## tag delete
 
@@ -838,11 +832,11 @@ xy tag delete --id TAG_ID --confirm
 xy tag delete TAG_ID --confirm --dry
 ```
 
-Deletion cannot be undone. Existing Events, historical Jobs, Tickets, actions, and limits may still contain the deleted Tag ID. Deleting a definition does not rewrite those records. `--dry` previews the request without deleting anything.
+Deletion cannot be undone. Existing Events, historical Jobs, Tickets, Actions, and Limits may still refer to the deleted Tag. `--dry` previews the deletion without making changes.
 
 ## tickets
 
-Search Tickets using the same indexed query language as the xyOps web interface. A plain invocation lists all Tickets, newest first.
+Search Tickets using the same search syntax as the xyOps web interface. A plain invocation lists all Tickets, newest first.
 
 ```sh
 xy tickets
@@ -858,7 +852,7 @@ xy tickets --format json
 
 Named search options include `subject`, `body`, `changes`, `status`, `username`, `assignees`, `cc`, `type`, `category`, `tags`, `created`, `due`, and `num`. Friendly aliases include `assignee`, `assign`, `tag`, `number`, and `date`. Category and Tag names may be supplied in place of IDs. Repeated or comma-separated values for one field are joined as alternatives.
 
-Positional text is passed through as an Unbase query, so quoted phrases, exclusions, alternatives, comparisons, date ranges, and PxQL expressions remain available. Results default to descending `_id` order. Use `--sort_by FIELD` with `--sort_dir asc|desc` to change the order.
+Positional searches support quoted phrases, exclusions, alternatives, comparisons, and date ranges. Results show the newest Tickets first. Use `--sort_by FIELD` with `--sort_dir asc|desc` to change the order.
 
 ## ticket
 
@@ -877,7 +871,7 @@ xy ticket download 12345 FILE_ID
 xy ticket delete 12345 --confirm
 ```
 
-Ticket numbers are accepted by all Ticket commands. Mutation APIs require an internal ID, so the CLI resolves a supplied number before sending the request. Exact internal IDs are sent directly unless the selected operation needs the existing Ticket data.
+Ticket numbers and internal IDs are accepted by all Ticket commands.
 
 ## ticket list
 
@@ -901,7 +895,7 @@ xy ticket 12345 --limit 10 --page 2
 xy ticket 12345 --format json
 ```
 
-Pagination options apply to the completed Jobs attached to the Ticket. JSON output contains the complete Ticket record returned by `get_ticket`.
+Pagination options apply to the completed Jobs attached to the Ticket. JSON output contains the complete Ticket.
 
 ## ticket create
 
@@ -925,13 +919,11 @@ Supported fields are `id`, `subject`, `body`, `type`, `status`, `category`, `ser
 
 List fields accept JSON arrays, comma-separated strings, or repeated singular `--assign` and `--tag` options. The `body` is always treated as Markdown text, including JSON-looking content loaded from a `.json` file. A due date may be a Unix timestamp or a relative duration such as `3 days`.
 
-Each `--file` path is uploaded through `upload_user_ticket_files` after creation and is always saved as a Ticket attachment. If an attachment upload fails, the Ticket has already been created and remains available.
-
 Draft Tickets suppress email notifications. This is useful when composing a Ticket incrementally or creating test data.
 
 ## ticket update
 
-Update a Ticket using its number or internal ID. Updates are sparse, so omitted properties and fields introduced by newer xyOps versions remain unchanged.
+Update a Ticket using its number or internal ID. Omitted fields remain unchanged.
 
 ```sh
 xy ticket update 12345 --subject "Updated subject"
@@ -952,7 +944,7 @@ xy ticket update 12345 --subject "Preview" --dry
 
 The plain actions `close`, `open`, and `draft` set the corresponding status. `reopen` is also accepted as an alias for `open`. `--assign USERNAME` appends to the complete saved `assignees` array, and `--tag TAG_ID_OR_TITLE` appends to the saved `tags` array. Existing values are not duplicated. In contrast, `--assignees` and `--tags` replace their respective arrays completely.
 
-Ticket Event assignments are displayed but are not edited by the v1 CLI. Use the xyOps web interface for those changes.
+Ticket Event assignments are read-only in the CLI. Use the xyOps web interface to edit them.
 
 ## ticket comment
 
@@ -966,7 +958,7 @@ cat comment.md | xy ticket comment 12345 --body @-
 xy ticket comment 12345 --body @comment.md --dry
 ```
 
-Adding a comment can notify Ticket assignees and recipients unless the Ticket status is `draft`. Editing and deleting comments are not supported by the v1 CLI.
+Adding a comment can notify Ticket assignees and recipients unless the Ticket status is `draft`. Editing and deleting comments are not currently supported by the CLI.
 
 ## ticket upload
 
@@ -979,7 +971,7 @@ xy ticket upload 12345 --files '["report.txt","metrics.json"]'
 xy ticket upload 12345 --file report.txt --dry
 ```
 
-The CLI always sends `save: true`, so uploads become permanent Ticket attachments rather than temporary body-editor files. Attachment deletion is not included in the v1 Ticket commands.
+Attachment deletion is not currently supported by the CLI.
 
 ## ticket download
 
@@ -994,7 +986,7 @@ xy ticket download --id tabc123 --file FILE_ID --download ./report-copy.txt
 xy ticket download 12345 FILE_ID --dry
 ```
 
-The output path defaults to the attachment's original filename in the current directory. The command refuses to overwrite an existing local file. A dry run resolves the Ticket and attachment and prints the complete download request without writing anything.
+The output path defaults to the attachment's original filename in the current directory. The command refuses to overwrite an existing local file. A dry run shows the selected Ticket, attachment, and destination without writing anything.
 
 ## ticket delete
 
@@ -1006,7 +998,7 @@ xy ticket delete --id tabc123 --confirm
 xy ticket delete 12345 --confirm --dry
 ```
 
-Deletion cannot be undone. xyOps removes Ticket references from Jobs and Alerts in background cleanup work. `--dry` previews the request without deleting anything.
+Deletion cannot be undone. `--dry` previews the deletion without making changes.
 
 ## hooks
 
@@ -1087,7 +1079,7 @@ URLs, header values, and bodies may contain xyOps template expressions such as `
 
 ## hook update
 
-Update a Web Hook by exact ID. Only the selected top-level fields are sent to xyOps, preserving unrelated settings and properties.
+Update a Web Hook by exact ID. Omitted settings remain unchanged.
 
 ```sh
 xy hook update HOOK_ID --title "New Title" --enabled false
@@ -1107,11 +1099,11 @@ xy hook update HOOK_ID --timeout 60 --dry
 
 A complete `headers` array replaces all saved headers. Dotted paths edit existing zero-based entries, and repeated `header` options append after replacement and dotted edits. Use `[]` to clear the list. Header names and values are checked using the same rules as the xyOps editor, including rejection of newline characters in values.
 
-The Hook ID and server-managed audit fields cannot be changed. `--dry` previews the sparse outgoing request, and `--format json` prints the API success response.
+The Hook ID cannot be changed. `--dry` previews the changes, and `--format json` prints the updated Web Hook.
 
 ## hook test
 
-Perform a real HTTP request using a saved Web Hook and render the API's detailed Markdown report. Testing does not save changes to the Hook.
+Perform a real HTTP request using a saved Web Hook and show a detailed report. Testing does not save changes to the Hook.
 
 ```sh
 xy hook test HOOK_ID
@@ -1122,9 +1114,9 @@ xy hook test HOOK_ID --format json
 xy hook test HOOK_ID --dry
 ```
 
-Any supplied Hook fields are temporary overrides for this test only. Without overrides, the saved definition is used exactly. `--dry` prints the complete proposed test request without contacting the destination.
+Any supplied Hook fields apply only to the test. Without overrides, the saved definition is used exactly. `--dry` previews the test without contacting the destination.
 
-The human-readable report includes the result, composed request, response, and performance metrics supplied by xyOps. Template expressions are expanded as they would be during a real execution. This can include decrypted Secret Vault values in request headers or bodies, so review terminal logging and redirection before testing a Hook that uses secrets. JSON output returns the raw `result` object containing `code`, `description`, and `details`.
+The report includes the result, request, response, and performance metrics. Template expressions are expanded as they would be during a real execution. This can include decrypted Secret Vault values in request headers or bodies, so review terminal logging and redirection before testing a Hook that uses secrets. Use `--format json` for structured output.
 
 ## hook delete
 
@@ -1136,7 +1128,7 @@ xy hook delete --id HOOK_ID --confirm
 xy hook delete HOOK_ID --confirm --dry
 ```
 
-Deletion cannot be undone. Events, workflows, categories, server groups, alerts, and Secret Vaults may still reference the deleted Hook ID. Deleting a definition does not rewrite those dependent objects. `--dry` previews the request without deleting anything.
+Deletion cannot be undone. Events, workflows, Categories, server groups, Alerts, and Secret Vaults may still refer to the deleted Web Hook. `--dry` previews the deletion without making changes.
 
 ## categories
 
@@ -1210,11 +1202,11 @@ xy category create --title "Preview" --dry
 
 Supported creation fields are `id`, `title`, `enabled`, `color`, `icon`, `notes`, `actions`, and `limits`. Common colors include `plain`, `red`, `orange`, `yellow`, `green`, `blue`, and `purple`. Set `color` to `false` in your CLI configuration to disable terminal colors (for example, `xy config --color false`). The category `--color` option sets the category color.
 
-As with events, `--actions` and `--limits` supply complete JSON arrays, while `--action` and `--limit` append objects. Singular options can be repeated. Here `--limit` is a resource limit object, while list commands use it for pagination. xyOps validates the action types, conditions, targets, and limit values. Add `--format json` to print the created category object.
+As with events, `--actions` and `--limits` supply complete JSON arrays, while `--action` and `--limit` append objects. Singular options can be repeated. Here `--limit` is a resource limit object, while list commands use it for pagination. Add `--format json` to print the created Category.
 
 ## category update
 
-Update a category by exact ID. Only the selected top-level fields are sent to xyOps. Dotted updates load the current arrays and preserve the other entries and properties.
+Update a Category by exact ID. Omitted fields remain unchanged. Dotted updates preserve the other array entries and settings.
 
 ```sh
 xy category update CAT_ID --title "New Title" --notes "Updated notes"
@@ -1230,11 +1222,11 @@ xy category update --id CAT_ID --sort_order 0
 xy category update CAT_ID --enabled false --dry
 ```
 
-Editable fields are `title`, `enabled`, `color`, `icon`, `notes`, `sort_order`, `actions`, and `limits`. The ID and server-managed audit fields cannot be changed. `sort_order` is a non-negative integer and does not renumber other categories.
+Editable fields are `title`, `enabled`, `color`, `icon`, `notes`, `sort_order`, `actions`, and `limits`. The ID cannot be changed. `sort_order` is a non-negative integer and does not renumber other Categories.
 
 Numerical array indexes must already exist. Use the singular `--action` or `--limit` option to append, or the plural option to replace an entire array. Supply `[]` to clear an array; to remove one entry, submit a replacement array without it. When combining array replacement and dotted edits, the replacement is applied first, followed by dotted edits and then singular appends.
 
-Disabling a category prevents scheduling and manual launches for all its events and workflows. `--dry` previews the outgoing request. `--format json` prints the API success response.
+Disabling a Category prevents scheduling and manual launches for all its Events and workflows. `--dry` previews the changes. `--format json` prints the updated Category.
 
 ## category delete
 
@@ -1246,7 +1238,7 @@ xy category delete --id CAT_ID --confirm
 xy category delete CAT_ID --confirm --dry
 ```
 
-`--dry` previews the request without deleting anything. `--format json` prints the API success response.
+`--dry` previews the deletion without making changes.
 
 ## channels
 
@@ -1330,7 +1322,7 @@ xy alert update ALERT_ID --action '{ "type":"channel", "enabled":true, "conditio
 
 ## channel update
 
-Update a channel by exact ID. Only the selected fields are sent to xyOps, preserving unrelated settings. The ID and server-managed audit fields cannot be changed.
+Update a Channel by exact ID. Omitted settings remain unchanged. The ID cannot be changed.
 
 ```sh
 xy channel update CHANNEL_ID --title "Production Operations" --notes "On-call team"
@@ -1347,7 +1339,7 @@ xy channel update CHANNEL_ID --enabled false --dry
 
 `--users` replaces the complete user list, `--user` appends users, and dotted paths edit existing zero-based array indexes. When combined, replacement runs first, then indexed edits, then appends. Use `[]` to clear the user list, or a replacement array to remove selected users. Empty strings clear optional text fields and notification targets.
 
-Disabling a channel causes actions that reference it to skip its notifications. `--dry` previews the outgoing request; `--format json` prints the API success response.
+Disabling a Channel causes actions that reference it to skip its notifications. `--dry` previews the changes, and `--format json` prints the updated Channel.
 
 ## channel delete
 
@@ -1359,7 +1351,7 @@ xy channel delete --id CHANNEL_ID --confirm
 xy channel delete CHANNEL_ID --confirm --dry
 ```
 
-Deletion does not remove references from events, workflows, categories, server groups, or alerts. Update those actions when replacing a channel. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+Deletion does not remove references from Events, workflows, Categories, server groups, or Alerts. Update those actions when replacing a Channel. `--dry` previews the deletion without making changes.
 
 ## monitors
 
@@ -1440,7 +1432,7 @@ Supported fields are `id`, `title`, `source`, `data_type`, `data_match`, `displa
 
 ## monitor update
 
-Update a monitor by exact ID. Only the selected fields are sent to xyOps, preserving unrelated settings. The ID and server-managed audit fields cannot be changed.
+Update a Monitor by exact ID. Omitted settings remain unchanged. The ID cannot be changed.
 
 ```sh
 xy monitor update MONITOR_ID --title "Production CPU" --notes "Primary load metric"
@@ -1457,9 +1449,9 @@ xy monitor update --id MONITOR_ID --json @changes.json
 xy monitor update MONITOR_ID --display false --dry
 ```
 
-The editable fields are the same as create, except `id` selects the monitor and `sort_order` can be set to an integer to change its position. Lower sort orders appear first. Supply negative numbers through a JSON file or stdin, as the command-line argument parser treats leading hyphens as options. A whole `--groups` list replaces the saved list, dotted paths edit existing indexes, and repeated `--group` options append IDs afterward. Use `--groups '[]'` to apply the monitor to all groups.
+The editable fields are the same as create, and `sort_order` can be set to an integer to change the Monitor's position. Lower sort orders appear first. Supply negative numbers through a JSON file or standard input. A whole `--groups` list replaces the saved list, dotted paths edit existing indexes, and repeated `--group` options append IDs afterward. Use `--groups '[]'` to apply the Monitor to all groups.
 
-`--dry` previews the outgoing request; `--format json` prints the API success response.
+`--dry` previews the changes, and `--format json` prints the updated Monitor.
 
 ## monitor test
 
@@ -1474,9 +1466,9 @@ xy monitor test MONITOR_ID --server SERVER_ID --data_match '' --format json
 xy monitor test --server SERVER_ID --source '1 + 2' --dry
 ```
 
-An unsaved expression defaults to `float`. Tests evaluate the source, apply `data_match` if set, and convert the result to the selected data type. They do not calculate changes between samples or apply delta settings. A successful zero is displayed as `0`; an expression that cannot be evaluated displays `No Value`. Invalid expression syntax or a regular expression that does not match produces an API error.
+An unsaved expression defaults to `float`. Tests evaluate the source, apply `data_match` if set, and convert the result to the selected data type. They do not calculate changes between samples or apply delta settings. A successful zero is displayed as `0`; an expression that cannot be evaluated displays `No Value`. Invalid expressions and unmatched regular expressions are reported as errors.
 
-JSON output preserves the API response: `{ "code": 0, "value": 37.5 }` or `{ "code": 0, "fail": true }`. Testing requires the `edit_monitors` privilege.
+JSON output includes the calculated value or failure status. Testing requires the `edit_monitors` privilege.
 
 ## monitor delete
 
@@ -1488,11 +1480,11 @@ xy monitor delete --id MONITOR_ID --confirm
 xy monitor delete MONITOR_ID --confirm --dry
 ```
 
-Review any alert expressions that refer to the monitor before deleting it. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+Review any Alert expressions that refer to the Monitor before deleting it. `--dry` previews the deletion without making changes.
 
 ## marketplace
 
-Search the xyOps Plugin Marketplace. The marketplace is hosted on GitHub and proxied through your xyOps server, so all requests use your configured server and API Key. Marketplace v1 contains Plugins only.
+Search the xyOps Plugin Marketplace. The Marketplace currently contains Plugins for Events, Monitors, Actions, and Schedulers.
 
 ```sh
 xy marketplace
@@ -1511,7 +1503,7 @@ xy marketplace --format json
 
 Positional text or `--query` searches titles, descriptions, IDs, licenses, tags, and requirements. Plugin types are `event`, `monitor`, `action`, and `scheduler`. The `tags` and `requires` filters accept comma-separated values or repeated options, and all selected values must match. Status is either `installed` or `not`.
 
-The server performs filtering, sorting, and pagination. Sort fields are `title`, `author`, `license`, `plugin_type`, `created`, and `modified`; sort direction is `asc` or `desc`. JSON output contains the current page as an array of marketplace listing objects.
+Sort fields are `title`, `author`, `license`, `plugin_type`, `created`, and `modified`; sort direction is `asc` or `desc`. JSON output contains the current page of Marketplace results.
 
 ## marketplace list
 
@@ -1545,11 +1537,11 @@ xy marketplace get --id pixlcore/xyplug-ai
 xy marketplace pixlcore/xyplug-ai --format json
 ```
 
-The latest published version is shown by default. Use `--version` to read an older published version. JSON output includes `item`, `version`, and the original README Markdown in `text`, without removing image markup.
+The latest published version is shown by default. Use `--version` to read an older published version. Use `--format json` for the complete listing details and original README Markdown.
 
 ## marketplace install
 
-Fetch, validate, and install one Marketplace Plugin by its exact `AUTHOR/REPO` ID. The command downloads the selected version's `xyops.json` XYPDF package and prints a friendly summary followed by the complete Plugin definition. Embedded scripts are shown separately with syntax highlighting so they are easy to review. **No Plugin is created or updated until you add `--confirm`.**
+Preview and install one Marketplace Plugin by its exact `AUTHOR/REPO` ID. The preview shows the Plugin definition and displays embedded scripts separately with syntax highlighting. **No Plugin is installed or upgraded until you add `--confirm`.**
 
 ```sh
 xy marketplace install pixlcore/xyplug-ai
@@ -1560,11 +1552,9 @@ xy marketplace install pixlcore/xyplug-ai --confirm --dry
 xy marketplace install pixlcore/xyplug-ai --confirm --format json
 ```
 
-Marketplace v1 packages must be XYPDF version 1.0 files containing exactly one Plugin item. The CLI checks the minimum xyOps version, listing type, Plugin type, internal Plugin ID, and package structure before making changes. Server-managed audit fields and Plugin process credentials are removed, then the Plugin receives a `marketplace` object containing the marketplace ID and selected version.
+The preview verifies that the package is compatible and explains whether it will install a new Plugin or upgrade an existing one. It also warns if the matching Plugin ID belongs to a local Plugin from another source. Use `--format json` for a structured preview.
 
-If the internal Plugin ID does not exist, installation uses `create_plugin`. If it already exists, installation uses `update_plugin`, just like the xyOps web interface. This is also how upgrades work. A preview explains whether the Plugin will be created or used to update the installed Plugin, and warns when the matching internal ID belongs to a local Plugin from another source. Explicit JSON formats retain the complete machine-readable preview envelope.
-
-Marketplace installation uses the normal Plugin privileges. The command does not execute or test the Plugin. Review its README, requirements, source repository, embedded script, and parameter definitions before confirming installation.
+Installation requires permission to create or update Plugins. The command does not execute or test the Plugin. Review its README, requirements, source repository, embedded script, and parameter definitions before confirming installation.
 
 ## plugins
 
@@ -1620,7 +1610,7 @@ xy plugin PLUGIN_ID --verbose
 xy plugin PLUGIN_ID --export plugin.json
 ```
 
-Normal output summarizes the embedded script and shows a separate Plugin Script section without printing its contents. Add `--verbose` to display the complete syntax-highlighted script and expanded values for code, textarea, and JSON parameter defaults. The CLI first guesses the script language from the Plugin executable, then falls back to automatic detection.
+Normal output summarizes the embedded script without printing its contents. Add `--verbose` to display the complete syntax-highlighted script and expanded values for code, textarea, and JSON parameter defaults.
 
 ## plugin create
 
@@ -1643,13 +1633,13 @@ xy plugin create --title "Preview" --command node --dry
 
 Common fields are `id`, `title`, `enabled`, `type`, `icon`, `command`, `script`, `uid`, `gid`, and `notes`. Use `--script @FILE` for source code or `--script @-` to read it from standard input. `command` contains the executable and optional arguments, without pipes or redirects. `uid` and `gid` select the Unix account used to run the process when supported.
 
-Event Plugins also accept `kill` with `none`, `parent`, or `all`, plus the `runner` boolean for remote job runners. Monitor Plugins accept `groups`, `plugin_format`, and `quick`; `plugin_format` is `text`, `json`, or `xml`, an empty group list means all groups, and `quick` also runs the Plugin through QuickMon every second. The option is named `plugin_format` because the global `--format` flag controls CLI output. Complete JSON request objects use the native `format` property. Action and Scheduler Plugins use the common fields and may define parameters.
+Event Plugins also accept `kill` with `none`, `parent`, or `all`, plus the `runner` boolean for remote job runners. Monitor Plugins accept `groups`, `plugin_format`, and `quick`; `plugin_format` is `text`, `json`, or `xml`, an empty group list means all groups, and `quick` also runs the Plugin through QuickMon every second. When loading a complete Plugin definition with `--json`, use `format` instead of `plugin_format`. Action and Scheduler Plugins use the common fields and may define parameters.
 
-Non-monitor Plugins accept parameter definitions through `params` and `param`. `--params` supplies the complete JSON array, while each `--param` appends one object. Supported parameter types are `text`, `textarea`, `code`, `json`, `checkbox`, `select`, `bucket`, `system`, `hidden`, `toolset`, and `group`. xyOps validates each definition and any specialized configuration such as menus and toolsets. Add `--format json` to print the created Plugin object.
+Non-monitor Plugins accept parameter definitions through `params` and `param`. `--params` supplies the complete JSON array, while each `--param` appends one object. Supported parameter types are `text`, `textarea`, `code`, `json`, `checkbox`, `select`, `bucket`, `system`, `hidden`, `toolset`, and `group`. Add `--format json` to print the created Plugin.
 
 ## plugin update
 
-Update a Plugin by exact ID. Only selected top-level fields are sent to xyOps, preserving unrelated settings. A Plugin's ID and type cannot be changed after creation.
+Update a Plugin by exact ID. Omitted settings remain unchanged. A Plugin's ID and type cannot be changed after creation.
 
 ```sh
 xy plugin update PLUGIN_ID --title "New Title" --notes "Updated notes"
@@ -1671,7 +1661,7 @@ xy plugin update PLUGIN_ID --enabled false --dry
 
 For non-monitor Plugins, a whole `--params` array replaces all parameter definitions, dotted paths edit existing zero-based indexes, and repeated `--param` options append definitions afterward. Use `[]` to clear the list or submit a replacement array without an item to remove it. When the options are combined, replacement happens first, followed by dotted edits and appends.
 
-For Monitor Plugins, `--groups` replaces the complete server-group list, dotted paths edit existing indexes, and repeated `--group` options append IDs without duplicates. Monitor Plugins do not support parameter definitions, and other Plugin types do not support monitor-only settings. `--dry` previews the outgoing request; `--format json` prints the API response.
+For Monitor Plugins, `--groups` replaces the complete server-group list, dotted paths edit existing indexes, and repeated `--group` options append IDs without duplicates. Monitor Plugins do not support parameter definitions, and other Plugin types do not support monitor-only settings. `--dry` previews the changes, and `--format json` prints the updated Plugin.
 
 ## plugin delete
 
@@ -1683,7 +1673,7 @@ xy plugin delete --id PLUGIN_ID --confirm
 xy plugin delete PLUGIN_ID --confirm --dry
 ```
 
-Before deleting a Plugin, review events, workflows, monitors, triggers, and actions that may reference it. Deletion does not rewrite those dependent definitions. `--dry` previews the request without deleting anything; `--format json` prints the API success response.
+Before deleting a Plugin, review Events, workflows, Monitors, triggers, and Actions that may reference it. Deletion does not remove those references. `--dry` previews the deletion without making changes.
 
 ## events
 
@@ -1702,7 +1692,7 @@ xy events --category ID_OR_TITLE --plugin ID_OR_TITLE
 
 ## event
 
-Work with one event by viewing, creating, updating, deleting, or running it. The event router accepts the operation as its next argument, while a bare ID or title opens the event details directly.
+View, create, update, delete, or run an Event. A bare ID or title opens the Event details directly.
 
 ```sh
 xy event ID_OR_TITLE
@@ -1741,7 +1731,7 @@ xy event create --title "Interval" --interval "5 minutes" --catchup
 xy event create --title "Preview" --plugin testplug --dry
 ```
 
-The CLI fills in default category, plugin, target, and algorithm values where possible. Dotted options create nested properties, while options such as `--cron`, `--interval`, `--seconds`, and `--catchup` create corresponding triggers.
+Default Category, Plugin, target, and algorithm values are used where possible. Dotted options set nested values, while `--cron`, `--interval`, `--seconds`, and `--catchup` add common triggers.
 
 ## event update
 
@@ -1757,7 +1747,7 @@ xy event update EVENT_ID --magic
 xy event update EVENT_ID --enabled false --dry
 ```
 
-Dotted options are applied directly to the loaded event, and numerical array indexes must already exist. The singular `--action`, `--trigger`, `--limit`, and `--field` options append new objects to their corresponding arrays.
+Dotted options preserve other settings, and numerical array indexes must already exist. The singular `--action`, `--trigger`, `--limit`, and `--field` options append new objects to their corresponding arrays.
 
 ## event delete
 
@@ -1769,7 +1759,7 @@ xy event delete EVENT_ID --delete_jobs --confirm
 xy event delete EVENT_ID --confirm --dry
 ```
 
-Deletion is blocked while the event has active jobs. Use `--dry` to inspect the request without deleting anything.
+Deletion is blocked while the Event has active Jobs. Use `--dry` to preview the deletion without making changes.
 
 ## event run
 
@@ -1788,7 +1778,7 @@ xy run ID_OR_TITLE --actions @my-actions.json
 cat request.json | xy run ID_OR_TITLE --json @-
 ```
 
-`xy run` is the short form of `xy event run`. Extra options are passed to the run request as event overrides, and dotted option names create nested properties.
+`xy run` is the short form of `xy event run`. Extra options temporarily override the saved Event settings, and dotted option names set nested values.
 
 ## run
 
@@ -1884,7 +1874,7 @@ xy job log JOB_ID --download JOB_ID.log
 
 ## job run
 
-Rerun a completed, event-backed job using its previous execution context. Add `--follow` to stream the new job, or use `--dry` to inspect the generated run request first.
+Rerun a completed, Event-backed Job using its previous settings. Add `--follow` to stream the new Job, or use `--dry` to preview the rerun first.
 
 ```sh
 xy job run JOB_ID
@@ -1896,7 +1886,7 @@ Ad hoc jobs and ad hoc workflow sub-jobs cannot be rerun independently.
 
 ## job resume
 
-Resume a suspended active job, optionally providing new parameter or input values. Dotted options are expanded into nested request properties before the job is resumed.
+Resume a suspended active Job, optionally providing new parameter or input values. Use dotted options for nested values.
 
 ```sh
 xy job resume JOB_ID
@@ -1907,7 +1897,7 @@ xy job resume JOB_ID --dry
 
 ## job abort
 
-Abort an active job that should no longer continue running. Use dry-run mode when you want to inspect the request without interrupting the job.
+Abort an active Job that should no longer continue running. Use `--dry` to preview the action without interrupting the Job.
 
 ```sh
 xy job abort JOB_ID
@@ -1954,8 +1944,8 @@ xy log --log xyOps --match "timeout" --dry
 
 Specify the log's base filename without its extension, such as `xyOps`. Standard column IDs are `hires_epoch`, `date`, `hostname`, `pid`, `component`, `category`, `code`, `msg`, and `data`; available columns follow your server configuration.
 
-Default output reconstructs native bracket-delimited log lines using all columns in the server's configured order. Brackets are gray and column values are color-coded, with full messages and data preserved. JSON output also defaults to all API columns and preserves their values, including the `data` field as a string. An explicit `--cols` selection applies to either output format. Column selection does not restrict which parts of each log line are searched.
+Default output shows complete bracket-delimited log lines using the server's configured column order. Brackets are gray and column values are color-coded. JSON output includes all log columns by default, including `data` as a string. An explicit `--cols` selection applies to either output format and does not limit which parts of each line are searched.
 
-The API retains the last N matches, then the CLI applies display order. `--sort date_asc` does not select the earliest N matches. There is no numbered pagination, so use `--rows` rather than `--limit`, `--offset`, or `--page`. The summary's total log-row count includes non-matching lines; it is not a total match count.
+The search selects the last N matches before applying the display order, so `--sort date_asc` does not select the earliest N matches. There is no numbered pagination; use `--rows` rather than `--limit`, `--offset`, or `--page`. The summary's total row count includes non-matching lines.
 
-Missing logs or archives return an empty result. `--dry` previews the API request without searching. To view a particular job's output instead, use `xy job log JOB_ID`.
+Missing logs or archives return an empty result. `--dry` previews the search. To view a particular Job's output instead, use `xy job log JOB_ID`.
