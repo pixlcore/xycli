@@ -74,7 +74,7 @@ test('channels', async t => {
 		await check('human detail covers configuration', () => {
 			const out = xy(['channel', id]);
 			fs.writeFileSync(Path.join(temp, 'detail.txt'), out);
-			for (const label of ['Notification Channel Summary', 'Users', 'Web Hook', 'Run Event', 'Sound', 'Daily Cap', 'Revision']) assert.ok(out.toLowerCase().includes(label.toLowerCase()));
+			for (const label of ['Notification Channel Summary', 'Users', 'Web Hook', 'Run Event', 'Sound', 'Daily Cap', 'Revision', 'Notification Channel Notes', 'Hello']) assert.ok(out.toLowerCase().includes(label.toLowerCase()));
 		});
 		
 		await check('human update shows target and parsed data', () => {

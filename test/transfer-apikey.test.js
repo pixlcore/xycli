@@ -33,11 +33,16 @@ test('transfer-apikey', async t => {
 	try {
 		// Create through the CLI, then retain exactly this original secret for
 		// every authentication probe. No replacement secret is ever requested.
-		const created = json(['key', 'create', '--title', title, '--active', 'true']);
+		const description = 'First description line.\nSecond description line with enough text to exercise the dedicated display box.';
+		const created = json(['key', 'create', '--title', title, '--description', description, '--active', 'true']);
 		const id = created.api_key.id;
 		const secret = created.plain_key;
 		
 		await verify(typeof secret === 'string' && secret.length > 0, 'Created disposable key with a plaintext secret');
+		
+		const detail = xy(['key', id]);
+		await verify(/APP DESCRIPTION[\s\S]*First description line\.[\s\S]*Second description line/.test(detail), 'App description has its own multiline section');
+		await verify(!/│ Description\s*:/.test(detail.split('APP DESCRIPTION')[0]), 'App description is omitted from the summary box');
 		
 		await verify((await authenticate(secret)).code === 0, 'Original secret authenticates before export');
 		

@@ -65,6 +65,7 @@ test('categories', async t => {
 		fs.writeFileSync(Path.join(temp, 'category-detail.txt'), detail);
 		
 		await check('human detail renders indexed actions and limits', () => {
+			assert.match(detail, /CATEGORY NOTES[\s\S]*Hello/);
 			assert.match(detail, /CATEGORY ACTIONS/);
 			assert.match(detail, /CATEGORY LIMITS/);
 			assert.match(detail, /│ # │/);

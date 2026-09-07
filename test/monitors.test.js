@@ -71,7 +71,7 @@ test('monitors', async t => {
 		await check('human detail includes all settings', () => {
 			const out = xy(['monitor', id]);
 			fs.writeFileSync(Path.join(temp, 'detail.txt'), out);
-			for (const label of ['Monitor Summary', 'Hidden', 'Source', 'Data Match', 'Delta Min', 'Sort Order', 'Revision']) assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
+			for (const label of ['Monitor Summary', 'Hidden', 'Source', 'Data Match', 'Delta Min', 'Sort Order', 'Revision', 'Monitor Notes', 'Hello']) assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
 		});
 		
 		await check('human update shows target and parsed data', () => {

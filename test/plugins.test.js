@@ -150,7 +150,7 @@ test('plugins', async t => {
 		await check('Event Plugin detail covers type-specific settings and parameters', () => {
 			const out = xy(['plugin', eventID]);
 			fs.writeFileSync(Path.join(temp, 'event-detail.txt'), out);
-			for (const label of ['Plugin Summary', 'Command', 'Script', 'Abort Policy', 'Remote Runner', 'Plugin Parameters', 'Sample Tool', 'Message', 'Alternate Tool', 'Alternate Count', 'Revision', 'Plugin Script', '(Shown in verbose mode)']) assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
+			for (const label of ['Plugin Summary', 'Command', 'Script', 'Abort Policy', 'Remote Runner', 'Plugin Notes', 'Event notes', 'Plugin Parameters', 'Sample Tool', 'Message', 'Alternate Tool', 'Alternate Count', 'Revision', 'Plugin Script', '(Shown in verbose mode)']) assert.ok(out.toLowerCase().includes(label.toLowerCase()), label);
 			assert.ok(!out.includes(script.trim()), 'Normal detail does not print full script');
 		});
 		
