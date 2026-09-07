@@ -1,7 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const Path = require('node:path');
 const utils = require('../lib/utils.js');
-const { loadTestConfig, createCheck, xy, json, call, cleanupFixtures } = require('./helpers/common.js');
+const { loadTestConfig, createCheck, createTempDir, xy, json, call, cleanupFixtures } = require('./helpers/common.js');
 
 function createValidationContext() {
 	// The production app mixes every utility into one object.  Reproduce only the
@@ -27,6 +29,18 @@ test('closest string suggestions require one unambiguous nearby match', () => {
 	assert.equal(utils.findClosestString('a', ['b', 'c']), '');
 });
 
+test('body arguments always remain opaque strings', t => {
+	loadTestConfig();
+	const temp = createTempDir(t, 'xycli-body-arg-test-');
+	const body = '{\n\t"message": "opaque JSON text"\n}\n';
+	const file = Path.join(temp, 'body.json');
+	fs.writeFileSync(file, body);
+
+	assert.equal(json(['api', 'unused', '--body', body, '--dry']).body, body);
+	assert.equal(json(['api', 'unused', '--body', '@-', '--dry'], { input: body }).body, body);
+	assert.equal(json(['api', 'unused', '--body', '@' + file, '--dry']).body, body);
+});
+
 test('standard API validation accepts documented and request-only properties', () => {
 	const context = createValidationContext();
 	const requests = {
@@ -39,7 +53,8 @@ test('standard API validation accepts documented and request-only properties', (
 		createMonitor: { title: 'Monitor', source: 'cpu.currentLoad', divide_by_delta: true },
 		updatePlugin: { id: 'plugin', marketplace: { id: 'author/repo', version: 'v1.0.0' } },
 		createSecret: { title: 'Vault', fields: [{ name: 'TOKEN', value: 'Opaque nested value' }], web_hooks: ['hook'] },
-		updateTag: { id: 'tag', icon: 'tag-outline', notes: 'Tag notes' }
+		updateTag: { id: 'tag', icon: 'tag-outline', notes: 'Tag notes' },
+		createWebHook: { title: 'Hook', url: 'https://example.com', method: 'POST', headers: [{ name: 'X-Test', value: 'yes' }] }
 	};
 	
 	Object.entries(requests).forEach( ([method, request]) => {
@@ -67,6 +82,10 @@ test('standard API validation rejects unknown properties with careful suggestion
 	assert.throws(
 		() => context.validateStandardAPIRequest('createTag', { title: 'Tag', notess: 'Typo' }),
 		/Unsupported property for create_tag: "notess"\. Did you mean "notes"\?/
+	);
+	assert.throws(
+		() => context.validateStandardAPIRequest('updateWebHook', { id: 'hook', notess: 'Typo' }),
+		/Unsupported property for update_web_hook: "notess"\. Did you mean "notes"\?/
 	);
 });
 

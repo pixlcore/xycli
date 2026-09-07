@@ -40,6 +40,10 @@ var highlight = require('cli-highlight').highlight;
 const Tools = cli.Tools;
 const chalk = cli.chalk;
 
+// These API parameters are always opaque strings, even when their contents
+// happen to look like JSON or come from a file with a .json extension.
+const JSON_ARG_EXCEPTIONS = ['body'];
+
 // coerce true/false into booleans
 for (var key in cli.args) {
 	if (cli.args[key] === 'true') cli.args[key] = true;
@@ -203,8 +207,8 @@ const app = {
 			for await (const chunk of process.stdin) chunks.push(chunk);
 			args[stdin_arg_key] = chunks.join('');
 			
-			// parse if input looks json-ish
-			if (args[stdin_arg_key].trim().match(/^\{[\s\S]*\}$/) || args[stdin_arg_key].trim().match(/^\[[\s\S]*\]$/)) {
+			// Some API parameters are opaque strings even when they look like JSON.
+			if (!JSON_ARG_EXCEPTIONS.includes(stdin_arg_key) && (args[stdin_arg_key].trim().match(/^\{[\s\S]*\}$/) || args[stdin_arg_key].trim().match(/^\[[\s\S]*\]$/))) {
 				try { args[stdin_arg_key] = JSON.parse(args[stdin_arg_key]); }
 				catch (err) { this.die("Failed to parse JSON from STDIN: " + err); }
 			}
@@ -215,7 +219,7 @@ const app = {
 			if (String(args[key]).match(/^@(.+)$/)) {
 				var file = RegExp.$1;
 				if (!fs.existsSync(file)) this.die("File not found: " + file);
-				if (file.match(/\.json$/i)) args[key] = JSON.parse( fs.readFileSync(file, 'utf8') );
+				if (!JSON_ARG_EXCEPTIONS.includes(key) && file.match(/\.json$/i)) args[key] = JSON.parse( fs.readFileSync(file, 'utf8') );
 				else args[key] = fs.readFileSync(file, 'utf8');
 			}
 		}
@@ -229,7 +233,7 @@ const app = {
 		
 		// any arg value that looks like json will be parsed
 		for (var key in args) {
-			if (args[key] && (typeof(args[key]) == 'string') && (args[key].trim().match(/^\{[\s\S]*\}$/) || args[key].trim().match(/^\[[\s\S]*\]$/))) {
+			if (!JSON_ARG_EXCEPTIONS.includes(key) && args[key] && (typeof(args[key]) == 'string') && (args[key].trim().match(/^\{[\s\S]*\}$/) || args[key].trim().match(/^\[[\s\S]*\]$/))) {
 				try { args[key] = JSON.parse( args[key] ); }
 				catch (err) { this.die("Failed to parse JSON from argument: " + err); }
 			}
@@ -252,7 +256,7 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, plugins, plugin, secrets, secret, tags, tag, marketplace, import, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, plugins, plugin, secrets, secret, tags, tag, hooks, hook, marketplace, import, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
@@ -320,7 +324,8 @@ const app = {
 	
 	async cmd_help() {
 		// show help section
-		var heading = this.args.other.join(' ') || 'help';
+		var parts = this.args.other.slice(0);
+		var heading = parts.join(' ') || 'help';
 		this.printHelp(heading);
 	},
 	
@@ -384,6 +389,7 @@ Tools.mergeHashInto( app, require('./lib/monitors.js') );
 Tools.mergeHashInto( app, require('./lib/plugins.js') );
 Tools.mergeHashInto( app, require('./lib/secrets.js') );
 Tools.mergeHashInto( app, require('./lib/tags.js') );
+Tools.mergeHashInto( app, require('./lib/webhook.js') );
 Tools.mergeHashInto( app, require('./lib/transfer.js') );
 Tools.mergeHashInto( app, require('./lib/marketplace.js') );
 

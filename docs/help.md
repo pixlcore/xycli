@@ -16,12 +16,13 @@ xy monitors
 xy plugins
 xy secrets
 xy tags
+xy hooks
 xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, and `tags`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, `tags`, and `hooks`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -59,6 +60,10 @@ xy help secret decrypt
 xy help tags
 xy help tag
 xy help tag create
+xy help hooks
+xy help hook
+xy help hook create
+xy help hook test
 xy help marketplace
 xy help marketplace search
 xy help marketplace get
@@ -98,7 +103,7 @@ Export supports all XYPDF object types:
 | Plugin | `xy plugin PLUGIN_ID --export plugin.json` |
 | Role | `xy role ROLE_ID --export role.json` |
 | Tag | `xy tag TAG_ID --export tag.json` |
-| Web hook | `xy webhook WEB_HOOK_ID --export hook.json` |
+| Web hook | `xy hook WEB_HOOK_ID --export hook.json` |
 
 The export variant is available for every command above, even when its other resource commands have not yet been implemented. Use it with a single object's details, rather than a list, search, or mutation command. `--id` and `--title` selectors are also supported.
 
@@ -829,6 +834,136 @@ xy tag delete TAG_ID --confirm --dry
 ```
 
 Deletion cannot be undone. Existing Events, historical Jobs, Tickets, actions, and limits may still contain the deleted Tag ID. Deleting a definition does not rewrite those records. `--dry` previews the request without deleting anything.
+
+## hooks
+
+List Web Hook definitions alphabetically by title. Search text matches IDs, titles, URLs, notes, and authors. Named filters may be combined.
+
+```sh
+xy hooks
+xy hooks SEARCH_TEXT
+xy hooks --enabled false
+xy hooks --method POST
+xy hooks --url example.com
+xy hooks --limit 10 --page 2
+xy hooks --format json
+```
+
+The table includes each Hook's ID, title, HTTP method, URL, status, and modification time. Use `--limit`, `--page`, or `--offset` to page through human-readable output. JSON output includes every matching Web Hook definition.
+
+## hook
+
+Work with one Web Hook by viewing, creating, updating, testing, or deleting it. A bare ID or fuzzy title opens the Hook details directly. Updates, tests, and deletes require the exact internal Hook ID.
+
+```sh
+xy hook HOOK_ID_OR_TITLE
+xy hook get HOOK_ID_OR_TITLE
+xy hook list
+xy hook create --title "My Hook" --url https://example.com/hook
+xy hook update HOOK_ID --enabled false
+xy hook test HOOK_ID
+xy hook delete HOOK_ID --confirm
+```
+
+The configured API Key needs `create_web_hooks`, `edit_web_hooks`, or `delete_web_hooks` for the corresponding mutation. Testing requires `edit_web_hooks`. Listing and viewing Hooks only require a valid API Key.
+
+## hook list
+
+List and filter Web Hook definitions using the same options as `xy hooks`.
+
+```sh
+xy hook list
+xy hook list SEARCH_TEXT
+xy hook list --enabled true --method POST
+xy hook list --limit 10 --page 2
+```
+
+## hook get
+
+View a Web Hook's request settings, headers, body, notes, author, dates, and revision. Exact IDs take precedence over fuzzy title matches.
+
+```sh
+xy hook HOOK_ID_OR_TITLE
+xy hook get --id HOOK_ID
+xy hook get --title "My Hook"
+xy hook HOOK_ID --format json
+xy hook HOOK_ID --export hook.json
+```
+
+## hook create
+
+Create a Web Hook with a required title and URL. New Hooks default to enabled with method `POST`, a 30-second timeout, no retries, no redirect following, normal TLS certificate verification, and an unlimited daily cap.
+
+```sh
+xy hook create --title "My Hook" --url https://example.com/hook
+xy hook create --id deploy_hook --title "Deploy" --url https://example.com/deploy --method POST
+xy hook create --title "JSON API" --url https://example.com/api --headers @headers.json --body @body.json
+xy hook create --title "Custom Header" --url https://example.com/api --header '{ "name":"Authorization", "value":"Bearer {{ secrets.API_TOKEN }}" }'
+xy hook create --title "From JSON" --json @hook.json
+cat hook.json | xy hook create --json @-
+xy hook create --title "Preview" --url https://example.com/hook --dry
+```
+
+Supported fields are `id`, `title`, `enabled`, `icon`, `url`, `method`, `headers`, `body`, `timeout`, `retries`, `follow`, `ssl_cert_bypass`, `max_per_day`, and `notes`. The URL must begin with `http://`, `https://`, or `{{` for a complete template expression. Methods are `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, and `DELETE`.
+
+The default headers are `Content-Type: application/json` and `User-Agent: xyOps/WebHook`. Use `--headers '[]'` to start with no headers. A whole `headers` array replaces the default, while each `header` option appends one `{ "name", "value" }` object. Both options accept JSON files, and singular options may be repeated.
+
+`timeout`, `retries`, and `max_per_day` are non-negative integers. A timeout of `0` waits indefinitely, and a daily cap of `0` is unlimited. `follow` and `ssl_cert_bypass` are booleans. TLS bypass is intended only for endpoints using self-signed certificates.
+
+URLs, header values, and bodies may contain xyOps template expressions such as `{{ text }}` and `{{ secrets.API_TOKEN }}`. Assign the Secret Vault to the Web Hook before using a secret expression.
+
+## hook update
+
+Update a Web Hook by exact ID. Only the selected top-level fields are sent to xyOps, preserving unrelated settings and properties.
+
+```sh
+xy hook update HOOK_ID --title "New Title" --enabled false
+xy hook update HOOK_ID --url https://example.com/new --method PUT
+xy hook update HOOK_ID --timeout 60 --retries 2 --follow true
+xy hook update HOOK_ID --ssl_cert_bypass true --max_per_day 100
+xy hook update HOOK_ID --body @body.txt
+xy hook update HOOK_ID --headers '[{"name":"X-My-Name","value":"My Value"}]'
+xy hook update HOOK_ID --headers @headers.json
+xy hook update HOOK_ID --headers.0.name "X-New-Name" --headers.0.value "New Value"
+xy hook update HOOK_ID --header '{ "name":"X-Another", "value":"Another Value" }'
+xy hook update HOOK_ID --headers '[]'
+xy hook update HOOK_ID --json @hook-update.json
+cat hook-update.json | xy hook update HOOK_ID --json @-
+xy hook update HOOK_ID --timeout 60 --dry
+```
+
+A complete `headers` array replaces all saved headers. Dotted paths edit existing zero-based entries, and repeated `header` options append after replacement and dotted edits. Use `[]` to clear the list. Header names and values are checked using the same rules as the xyOps editor, including rejection of newline characters in values.
+
+The Hook ID and server-managed audit fields cannot be changed. `--dry` previews the sparse outgoing request, and `--format json` prints the API success response.
+
+## hook test
+
+Perform a real HTTP request using a saved Web Hook and render the API's detailed Markdown report. Testing does not save changes to the Hook.
+
+```sh
+xy hook test HOOK_ID
+xy hook test HOOK_ID --timeout 10
+xy hook test HOOK_ID --url https://httpbin.org/post --method POST
+xy hook test HOOK_ID --headers @test-headers.json --body @test-body.json
+xy hook test HOOK_ID --format json
+xy hook test HOOK_ID --dry
+```
+
+Any supplied Hook fields are temporary overrides for this test only. Without overrides, the saved definition is used exactly. `--dry` prints the complete proposed test request without contacting the destination.
+
+The human-readable report includes the result, composed request, response, and performance metrics supplied by xyOps. Template expressions are expanded as they would be during a real execution. This can include decrypted Secret Vault values in request headers or bodies, so review terminal logging and redirection before testing a Hook that uses secrets. JSON output returns the raw `result` object containing `code`, `description`, and `details`.
+
+## hook delete
+
+Permanently delete a Web Hook by exact ID. Explicit confirmation is required.
+
+```sh
+xy hook delete HOOK_ID --confirm
+xy hook delete --id HOOK_ID --confirm
+xy hook delete HOOK_ID --confirm --dry
+```
+
+Deletion cannot be undone. Events, workflows, categories, server groups, alerts, and Secret Vaults may still reference the deleted Hook ID. Deleting a definition does not rewrite those dependent objects. `--dry` previews the request without deleting anything.
 
 ## categories
 

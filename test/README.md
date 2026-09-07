@@ -60,6 +60,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `transfer` | All portable object types, preview and confirmation, dependencies, gzip, validation, partial failures |
 | `transfer-apikey` | Export, deletion, import, and authentication with the original plaintext secret |
 | `transfer-workflow` | Fresh workflow migration with shared dependencies |
+| `webhook` | CRUD, aliases, headers, exact body input, live Markdown test reports, sparse updates, validation, help |
 
 Pagination checks that require saved events, completed jobs, or alert history report a skip when those records are unavailable.
 
