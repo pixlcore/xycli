@@ -74,12 +74,12 @@ test('channels', async t => {
 		await check('human detail covers configuration', () => {
 			const out = xy(['channel', id]);
 			fs.writeFileSync(Path.join(temp, 'detail.txt'), out);
-			for (const label of ['Notification Channel Summary', 'Users', 'Web Hook', 'Run Event', 'Sound', 'Daily Cap', 'Revision', 'Notification Channel Notes', 'Hello']) assert.ok(out.toLowerCase().includes(label.toLowerCase()));
+			for (const label of ['Channel Summary', 'Users', 'Web Hook', 'Run Event', 'Sound', 'Daily Cap', 'Revision', 'Channel Notes', 'Hello']) assert.ok(out.toLowerCase().includes(label.toLowerCase()));
 		});
 		
 		await check('human update shows target and parsed data', () => {
 			const out = xy(['channel', 'update', id, '--notes', 'Preview', '--dry']);
-			assert.match(out, /UPDATE NOTIFICATION CHANNEL/);
+			assert.match(out, /UPDATE CHANNEL/);
 			assert.match(out, new RegExp('Channel ID:\\s+' + id));
 			assert.match(out, /UPDATE DATA[\s\S]*"notes": "Preview"/);
 		});
@@ -131,8 +131,8 @@ test('channels', async t => {
 		await check('unconfirmed delete shows target and warning toast', () => {
 			for (const args of [['delete', id], ['delete', id, '--confirm', 'false']]) {
 				const out = xy(['channel', ...args]);
-				assert.match(out, /DELETE NOTIFICATION CHANNEL/);
-				assert.match(out, /⚠️[\s\S]*Please confirm the notification channel delete/);
+				assert.match(out, /DELETE CHANNEL/);
+				assert.match(out, /⚠️[\s\S]*Please confirm the channel delete/);
 			}
 		});
 		

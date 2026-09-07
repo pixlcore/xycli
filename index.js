@@ -303,7 +303,7 @@ const app = {
 		this.jsonOutput(this.args);
 		
 		if (this.dry) {
-			println( "\n " + bold.yellow("DRY RUN: ") + "Exiting without sending request." );
+			this.toast('⚠️', 'orange', bold("DRY RUN: ") + "Exiting without sending request.");
 			return;
 		}
 		
@@ -324,10 +324,26 @@ const app = {
 	
 	printHelp(heading) {
 		// print named section from help file
+		heading = heading.toLowerCase();
 		var md = fs.readFileSync(Path.join(__dirname, 'docs', 'help.md'), 'utf8').trim() + "\n\n# end sentinel\n";
 		var re = new RegExp( "(^|\\n)(\\#+)\\s+(" + Tools.escapeRegExp(heading) + ")\\n([\\s\\S]*?)\\n\#+\\s+" );
 		var matches = md.match(re);
-		if (!matches) this.die("Could not find help chapter for: " + heading);
+		if (!matches) {
+			var msg = 'Could not find help chapter for "' + heading + '".';
+			
+			// Extract the user-visible Markdown headings and reuse the same conservative
+			// Levenshtein matcher used for API property typo suggestions.  The final
+			// heading is synthetic and exists only to terminate the section regex.
+			var headings = Array.from( md.matchAll(/^\#+\s+(.+?)\s*$/gm), match => match[1] );
+			headings = headings.filter( heading => heading != 'end sentinel' );
+			var suggestion = this.findClosestString(heading, headings);
+			if (suggestion) msg += ' Did you mean "' + suggestion + '"?';
+			
+			this.die(msg);
+		}
+		
+		if (heading == 'help') heading = 'overview';
+		println( "\n " + this.color('theme').bold( 'HELP: ' + heading.toUpperCase() ) );
 		println( "\n" + this.markdown( matches[4].trim() ).trim() );
 	},
 	

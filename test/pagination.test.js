@@ -127,10 +127,11 @@ test('pagination', async t => {
 		});
 	}
 	
-	await check('mutation offset and page are no longer consumed globally', () => {
-		const payload = json(['event', 'create', '--title', 'Pagination dry test', '--offset', '7', '--page', '3', '--dry']);
-		assert.equal(payload.offset, 7);
-		assert.equal(payload.page, 3);
+	await check('mutation pagination properties reach CRUD validation', () => {
+		for (const [key, value] of [['offset', '7'], ['page', '3']]) {
+			const output = runCLI(['event', 'create', '--title', 'Pagination dry test', '--' + key, value, '--dry'], { fail: true });
+			assert.match(output, new RegExp('Unsupported property for create_event: "' + key + '"'));
+		}
 	});
 	
 	await check('category color remains a resource property', () => assert.equal(json(['category', 'create', '--title', 'Color dry test', '--color', 'blue', '--dry']).color, 'blue'));
