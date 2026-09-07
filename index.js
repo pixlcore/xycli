@@ -12,8 +12,11 @@ const cp = require('child_process');
 const Path = require('path');
 const Uncatch = require('uncatch');
 const cli = require('pixl-cli');
-const { api } = require('@pixlcore/xyops-sdk');
 const pkg = require('./package.json');
+
+if (!process.env.XYOPS_USER_AGENT) {
+	process.env.XYOPS_USER_AGENT = `xyOps CLI v${pkg.version} (Node.js); ${os.hostname()} (${os.platform()}/${os.arch()})`;
+}
 
 cli.global();
 
@@ -36,6 +39,7 @@ Uncatch.on('uncaughtException', function(err) {
 	cli.progress.end();
 });
 
+const { api } = require('@pixlcore/xyops-sdk');
 var highlight = require('cli-highlight').highlight;
 const Tools = cli.Tools;
 const chalk = cli.chalk;
@@ -256,7 +260,7 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, plugins, plugin, secrets, secret, tags, tag, tickets, ticket, hooks, hook, marketplace, import, api, repl\n\n");
+			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, system, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, jobs, job, keys, key, log, monitors, monitor, plugins, plugin, secrets, secret, tags, tag, tickets, ticket, hooks, hook, marketplace, import, api, repl\n\n");
 		}
 		
 		// merge in config from xyops
@@ -377,6 +381,7 @@ const app = {
 Tools.mergeHashInto( app, require('./lib/utils.js') );
 Tools.mergeHashInto( app, require('./lib/config.js') );
 Tools.mergeHashInto( app, require('./lib/dashboard.js') );
+Tools.mergeHashInto( app, require('./lib/system.js') );
 Tools.mergeHashInto( app, require('./lib/events.js') );
 Tools.mergeHashInto( app, require('./lib/jobs.js') );
 Tools.mergeHashInto( app, require('./lib/apikey.js') );

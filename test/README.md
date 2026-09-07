@@ -55,6 +55,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |
 | `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
 | `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
+| `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |

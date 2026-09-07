@@ -4,6 +4,7 @@ Welcome to the xyOps command-line interface. Use `xy` to check your system at a 
 
 ```sh
 xy
+xy system
 xy events
 xy jobs
 xy keys
@@ -27,6 +28,11 @@ Use plural commands such as `events`, `jobs`, and `tickets` to browse collection
 
 ```sh
 xy help events
+xy help system
+xy help system export
+xy help system diagnostic
+xy help system restart
+xy help system shutdown
 xy help event
 xy help event create
 xy help jobs
@@ -214,6 +220,181 @@ xy dashboard --upcoming
 xy dashboard upcoming
 xy upcoming
 ```
+
+## system
+
+Show the administrator System dashboard. It includes process and database statistics, internal jobs, conductor status, and all connected users.
+
+System commands require a full administrator API Key.
+
+```sh
+xy system
+xy system dashboard
+xy system export xyops-export.json.gz
+xy system import xyops-export.json.gz
+xy system delete events,categories,buckets --confirm
+xy system maintenance
+xy system optimize
+xy system reset rates
+xy system restart conductor xyops02.example.com
+xy system shutdown conductor xyops02.example.com
+xy system upgrade workers server1,server2 --confirm
+xy system email test@example.com
+xy system diagnostic
+xy system broadcast "System maintenance begins soon"
+```
+
+Several System operations can interrupt jobs or permanently change data. Commands that import, delete, restart, shut down, or upgrade require `--confirm` before they proceed.
+
+## system export
+
+Download a gzip-compressed xyOps data archive. By default, all configuration lists are included, while database history and optional file data are omitted.
+
+```sh
+xy system export xyops-export.json.gz
+xy system export config.json.gz --lists events,categories,plugins
+xy system export history.json.gz --lists none --indexes jobs,activity
+xy system export complete.json.gz --lists all --indexes all --extras all
+xy system export xyops-export.json.gz --overwrite
+xy system export xyops-export.json.gz --dry
+```
+
+Use `--lists`, `--indexes` (or `--tables`), and `--extras` with comma-separated names. Each option also accepts `all` or `none`.
+
+Configuration lists include `alerts`, `api_keys`, `buckets`, `categories`, `channels`, `events`, `groups`, `monitors`, `plugins`, `secrets`, `tags`, `users`, `roles`, and `web_hooks`. Database indexes include `alerts`, `jobs`, `servers`, `snapshots`, `activity`, and `tickets`. Extras include job files and logs, Bucket files, Ticket files, Monitor history, statistics history, and user avatars.
+
+The destination directory must already exist. Existing files are preserved unless you add `--overwrite`. The completed archive is written with permissions limited to your user account.
+
+## system import
+
+Import an xyOps or Cronicle bulk data archive. The command shows the selected file and its format first. **No data is imported until you add `--confirm`.**
+
+```sh
+xy system import xyops-export.json.gz
+xy system import xyops-export.json.gz --confirm
+xy system import cronicle-export.txt.gz --source cronicle --confirm
+xy system import xyops-export.json.gz --confirm --dry
+```
+
+Bulk imports can replace existing data, stop running jobs, clear queued jobs, and pause the scheduler. Back up your system and review the selected file before confirming.
+
+## system delete
+
+Permanently delete selected categories of system data. Pass a comma-separated list, or use `all` to select everything. **Nothing is deleted until you add `--confirm`.**
+
+```sh
+xy system delete events,categories,buckets
+xy system delete events,categories,buckets --confirm
+xy system delete jobs,activity --confirm
+xy system delete all --confirm
+```
+
+Names normally select the matching configuration list or database index. `alerts` selects both Alert definitions and Alert history. Use an explicit `list:` or `db:` prefix when you only want one, such as `list:alerts` or `db:alerts`.
+
+Bulk deletion may pause the scheduler. This operation cannot be undone, so export a backup first.
+
+## system maintenance
+
+Run the normal nightly maintenance process immediately. Expired data is removed, and a database backup is created when backups are configured. The work continues as an internal background job.
+
+```sh
+xy system maintenance
+xy system maint
+xy system maintenance --dry
+```
+
+## system optimize
+
+Compact the database to reclaim unused disk space and run an integrity check. The database may be locked while this work runs, so stop active jobs and pause the scheduler first. Results are sent to the administrator by email when email is configured.
+
+```sh
+xy system optimize
+xy system optimize --dry
+```
+
+## system reset
+
+Reset daily dashboard statistics or job rate-limit windows. You can reset one rate-limit pool by ID, or omit `--id` to reset every pool.
+
+```sh
+xy system reset daily
+xy system reset rates
+xy system reset rates --id RATE_POOL_ID
+xy system reset rates --dry
+```
+
+Resetting rate limits immediately restores their full allowance, so queued jobs may begin launching on the next scheduler tick.
+
+## system restart
+
+Restart a conductor server by hostname. The command shows the selected hostname first. **The restart request is not sent until you add `--confirm`.**
+
+```sh
+xy system restart conductor xyops02.example.com
+xy system restart conductor xyops02.example.com --confirm
+```
+
+Restarting a conductor may briefly interrupt service while the process starts again.
+
+## system shutdown
+
+Shut down a conductor server by hostname. The command shows the selected hostname first. **The shutdown request is not sent until you add `--confirm`.**
+
+```sh
+xy system shutdown conductor xyops02.example.com
+xy system shutdown conductor xyops02.example.com --confirm
+```
+
+The conductor remains offline until it is started again outside the CLI.
+
+## system upgrade
+
+Upgrade or downgrade selected worker or conductor servers. Worker targets may be server IDs or group IDs. Conductor targets are host IDs.
+
+```sh
+xy system upgrade conductors joemax.lan --version v1.0.96
+xy system upgrade workers server1,server2
+xy system upgrade workers GROUP_ID --version latest --stagger 30
+xy system upgrade conductors joemax.lan --version v1.0.96 --confirm
+```
+
+The default version is `latest`, and the default delay between servers is 60 seconds. Use `--stagger SECONDS` to change the delay. Review the target summary, then add `--confirm` to start the upgrade.
+
+## system email
+
+Send a test email and show the delivery result and mailer log. Use this to verify the xyOps email configuration.
+
+```sh
+xy system email test@example.com
+xy system email --to test@example.com
+xy system email test@example.com --dry
+```
+
+## system diagnostic
+
+Print a detailed System diagnostic snapshot as JSON. The snapshot includes system and storage statistics, conductors, workers, active work, scheduler state, and connections.
+
+```sh
+xy system diagnostic
+xy system diag
+xy system diagnostic --format jsonc
+```
+
+Diagnostic output can contain hostnames, IP addresses, usernames, job parameters, and other private system details. Review it carefully before sharing it.
+
+## system broadcast
+
+Send a plain-text notification to every connected xyOps user. The default notification type is `info`.
+
+```sh
+xy system broadcast "System maintenance begins soon"
+xy system broadcast "Please save your work" --type warning
+xy system broadcast --message "All systems are operational" --type info
+xy system broadcast "Deployment complete" --sound bell.mp3
+xy system broadcast "Test message" --dry
+```
+
+Available notification types are `info`, `warning`, `error`, and `critical`. Use `--sound FILENAME` to play a sound that is already available in xyOps.
 
 ## upcoming
 
