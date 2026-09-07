@@ -16,13 +16,14 @@ xy monitors
 xy plugins
 xy secrets
 xy tags
+xy tickets
 xy hooks
 xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, `tags`, and `hooks`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, `tags`, `tickets`, and `hooks`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -60,6 +61,10 @@ xy help secret decrypt
 xy help tags
 xy help tag
 xy help tag create
+xy help tickets
+xy help ticket
+xy help ticket create
+xy help ticket comment
 xy help hooks
 xy help hook
 xy help hook create
@@ -834,6 +839,158 @@ xy tag delete TAG_ID --confirm --dry
 ```
 
 Deletion cannot be undone. Existing Events, historical Jobs, Tickets, actions, and limits may still contain the deleted Tag ID. Deleting a definition does not rewrite those records. `--dry` previews the request without deleting anything.
+
+## tickets
+
+Search Tickets using the same indexed query language as the xyOps web interface. A plain invocation lists all Tickets, newest first.
+
+```sh
+xy tickets
+xy tickets "backup failure"
+xy tickets 'subject:"release plan" status:open'
+xy tickets --status open --type issue
+xy tickets --assignee admin --tag important
+xy tickets --category Production --created today
+xy tickets --due '<today' --sort_dir asc
+xy tickets --limit 25 --page 2
+xy tickets --format json
+```
+
+Named search options include `subject`, `body`, `changes`, `status`, `username`, `assignees`, `cc`, `type`, `category`, `tags`, `created`, `due`, and `num`. Friendly aliases include `assignee`, `assign`, `tag`, `number`, and `date`. Category and Tag names may be supplied in place of IDs. Repeated or comma-separated values for one field are joined as alternatives.
+
+Positional text is passed through as an Unbase query, so quoted phrases, exclusions, alternatives, comparisons, date ranges, and PxQL expressions remain available. Results default to descending `_id` order. Use `--sort_by FIELD` with `--sort_dir asc|desc` to change the order.
+
+## ticket
+
+Work with one Ticket using its friendly number or internal ID. Ticket numbers are shown with a `#` prefix, while internal IDs begin with `t`.
+
+```sh
+xy ticket 12345
+xy ticket '#12345'
+xy ticket get --num 12345
+xy ticket get --id tabc123
+xy ticket create --subject "Investigate backup failure" --status draft
+xy ticket update 12345 close
+xy ticket 12345 --comment "Investigation started."
+xy ticket upload 12345 --file report.txt
+xy ticket delete 12345 --confirm
+```
+
+Ticket numbers are accepted by all Ticket commands. Mutation APIs require an internal ID, so the CLI resolves a supplied number before sending the request. Exact internal IDs are sent directly unless the selected operation needs the existing Ticket data.
+
+## ticket list
+
+Search Tickets using the same interface as `xy tickets`.
+
+```sh
+xy ticket list
+xy ticket list --status draft
+xy ticket search "database timeout" --tag important
+```
+
+## ticket get
+
+Display a Ticket summary with its number, internal ID, subject, status, type, assignments, due date, Tags, author, and timestamps. The Markdown body and each Markdown comment are rendered for the terminal. Attached Events, files, active Jobs, and completed Jobs are shown in separate sections.
+
+```sh
+xy ticket 12345
+xy ticket get 12345
+xy ticket get tabc123
+xy ticket 12345 --limit 10 --page 2
+xy ticket 12345 --format json
+```
+
+Pagination options apply to the completed Jobs attached to the Ticket. JSON output contains the complete Ticket record returned by `get_ticket`.
+
+## ticket create
+
+Create a Ticket with a required subject. Defaults match the web editor: status `open`, type `change`, no assignments, no due date, and empty body, category, server, recipient, and Tag fields.
+
+```sh
+xy ticket create --subject "Investigate backup failure"
+xy ticket create --subject "Draft release plan" --status draft --assign admin
+xy ticket create --subject "Maintenance" --type maintenance --due "3 days"
+xy ticket create --subject "Incident" --category Production --server host01
+xy ticket create --subject "Review" --assignees "admin,oncall" --cc manager
+xy ticket create --subject "External update" --notify "ops@example.com"
+xy ticket create --subject "Detailed Ticket" --body @ticket.md
+xy ticket create --subject "With files" --file report.txt --file metrics.json
+xy ticket create --json @ticket.json
+cat ticket.json | xy ticket create --json @-
+xy ticket create --subject "Preview" --status draft --dry
+```
+
+Supported fields are `id`, `subject`, `body`, `type`, `status`, `category`, `server`, `assignees`, `cc`, `notify`, `due`, and `tags`. Ticket types are `issue`, `feature`, `release`, `change`, `maintenance`, `question`, and `other`. Statuses are `draft`, `open`, and `closed`.
+
+List fields accept JSON arrays, comma-separated strings, or repeated singular `--assign` and `--tag` options. The `body` is always treated as Markdown text, including JSON-looking content loaded from a `.json` file. A due date may be a Unix timestamp or a relative duration such as `3 days`.
+
+Each `--file` path is uploaded through `upload_user_ticket_files` after creation and is always saved as a Ticket attachment. If an attachment upload fails, the Ticket has already been created and remains available.
+
+Draft Tickets suppress email notifications. This is useful when composing a Ticket incrementally or creating test data.
+
+## ticket update
+
+Update a Ticket using its number or internal ID. Updates are sparse, so omitted properties and fields introduced by newer xyOps versions remain unchanged.
+
+```sh
+xy ticket update 12345 --subject "Updated subject"
+xy ticket update 12345 --body @ticket.md
+xy ticket update 12345 --status closed
+xy ticket update 12345 close
+xy ticket update 12345 open
+xy ticket update 12345 draft
+xy ticket update 12345 --assign admin
+xy ticket update 12345 --tag important
+xy ticket update 12345 --assignees '["admin","oncall"]'
+xy ticket update 12345 --tags "important,production"
+xy ticket update 12345 --due "1 week"
+xy ticket update 12345 --due 0
+xy ticket update 12345 --json @ticket-update.json
+xy ticket update 12345 --subject "Preview" --dry
+```
+
+The plain actions `close`, `open`, and `draft` set the corresponding status. `reopen` is also accepted as an alias for `open`. `--assign USERNAME` appends to the complete saved `assignees` array, and `--tag TAG_ID_OR_TITLE` appends to the saved `tags` array. Existing values are not duplicated. In contrast, `--assignees` and `--tags` replace their respective arrays completely.
+
+Ticket Event assignments are displayed but are not edited by the v1 CLI. Use the xyOps web interface for those changes.
+
+## ticket comment
+
+Add a Markdown comment to a Ticket. Comments may be supplied with the convenient detail shortcut or with the explicit command.
+
+```sh
+xy ticket 12345 --comment "Investigation started."
+xy ticket comment 12345 --body "**Resolved:** Restarted the service."
+xy ticket comment 12345 --body @comment.md
+cat comment.md | xy ticket comment 12345 --body @-
+xy ticket comment 12345 --body @comment.md --dry
+```
+
+Adding a comment can notify Ticket assignees and recipients unless the Ticket status is `draft`. Editing and deleting comments are not supported by the v1 CLI.
+
+## ticket upload
+
+Upload one or more files and save them as Ticket attachments. Both `--file` and `--files` may be repeated, and every local path must identify a regular file.
+
+```sh
+xy ticket upload 12345 --file report.txt
+xy ticket upload 12345 --file report.txt --file metrics.json
+xy ticket upload 12345 --files '["report.txt","metrics.json"]'
+xy ticket upload 12345 --file report.txt --dry
+```
+
+The CLI always sends `save: true`, so uploads become permanent Ticket attachments rather than temporary body-editor files. Attachment deletion is not included in the v1 Ticket commands.
+
+## ticket delete
+
+Permanently delete a Ticket using its number or internal ID. Explicit confirmation is required.
+
+```sh
+xy ticket delete 12345 --confirm
+xy ticket delete --id tabc123 --confirm
+xy ticket delete 12345 --confirm --dry
+```
+
+Deletion cannot be undone. xyOps removes Ticket references from Jobs and Alerts in background cleanup work. `--dry` previews the request without deleting anything.
 
 ## hooks
 

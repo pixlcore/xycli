@@ -54,6 +54,7 @@ test('standard API validation accepts documented and request-only properties', (
 		updatePlugin: { id: 'plugin', marketplace: { id: 'author/repo', version: 'v1.0.0' } },
 		createSecret: { title: 'Vault', fields: [{ name: 'TOKEN', value: 'Opaque nested value' }], web_hooks: ['hook'] },
 		updateTag: { id: 'tag', icon: 'tag-outline', notes: 'Tag notes' },
+		createTicket: { subject: 'Ticket', status: 'draft', body: '{ "opaque": true }', assignees: ['admin'] },
 		createWebHook: { title: 'Hook', url: 'https://example.com', method: 'POST', headers: [{ name: 'X-Test', value: 'yes' }] }
 	};
 	
@@ -82,6 +83,10 @@ test('standard API validation rejects unknown properties with careful suggestion
 	assert.throws(
 		() => context.validateStandardAPIRequest('createTag', { title: 'Tag', notess: 'Typo' }),
 		/Unsupported property for create_tag: "notess"\. Did you mean "notes"\?/
+	);
+	assert.throws(
+		() => context.validateStandardAPIRequest('updateTicket', { id: 'ticket', subjec: 'Typo' }),
+		/Unsupported property for update_ticket: "subjec"\. Did you mean "subject"\?/
 	);
 	assert.throws(
 		() => context.validateStandardAPIRequest('updateWebHook', { id: 'hook', notess: 'Typo' }),
