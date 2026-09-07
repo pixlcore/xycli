@@ -15,12 +15,13 @@ xy log xyOps --rows 100
 xy monitors
 xy plugins
 xy secrets
+xy tags
 xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, and `secrets`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, `secrets`, and `tags`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -55,6 +56,9 @@ xy help secrets
 xy help secret
 xy help secret create
 xy help secret decrypt
+xy help tags
+xy help tag
+xy help tag create
 xy help marketplace
 xy help marketplace search
 xy help marketplace get
@@ -728,6 +732,103 @@ xy secret delete SECRET_VAULT_ID --confirm --dry
 ```
 
 Deletion cannot be undone. Review Events, Categories, Plugins, and Web Hooks that may rely on the vault before deleting it. `--dry` previews the request without deleting anything.
+
+## tags
+
+List Tag definitions alphabetically by title. Search text matches IDs, titles, notes, and authors. Named filters may be combined.
+
+```sh
+xy tags
+xy tags SEARCH_TEXT
+xy tags --icon alert-rhombus
+xy tags --title Production
+xy tags --limit 10 --page 2
+xy tags --format json
+```
+
+The table includes each Tag's ID, title, icon, number of matching Events, author, and modification time. Use `--limit`, `--page`, or `--offset` to page through human-readable output. JSON output includes every matching Tag definition.
+
+## tag
+
+Work with one Tag by viewing, creating, updating, or deleting it. A bare ID or fuzzy title opens the Tag details directly. Updates and deletes require the exact internal Tag ID.
+
+```sh
+xy tag TAG_ID_OR_TITLE
+xy tag get TAG_ID_OR_TITLE
+xy tag list
+xy tag create --title "Production" --icon server
+xy tag update TAG_ID --notes "Production workloads"
+xy tag delete TAG_ID --confirm
+```
+
+The configured API Key needs `create_tags`, `edit_tags`, or `delete_tags` for the corresponding mutation. Listing and viewing Tags only require a valid API Key.
+
+## tag list
+
+List and filter Tag definitions using the same options as `xy tags`.
+
+```sh
+xy tag list
+xy tag list SEARCH_TEXT
+xy tag list --icon tag-outline
+xy tag list --limit 10 --page 2
+```
+
+## tag get
+
+View a Tag's title, icon, Event count, notes, author, dates, and revision. Exact IDs take precedence over fuzzy title matches.
+
+```sh
+xy tag TAG_ID_OR_TITLE
+xy tag get --id TAG_ID
+xy tag get --title "Production"
+xy tag TAG_ID --format json
+xy tag TAG_ID --export tag.json
+xy events --tags TAG_ID
+```
+
+## tag create
+
+Create a Tag with a required title. xyOps generates an ID unless you provide one. New Tags use the `tag-outline` icon by default and start with empty notes.
+
+```sh
+xy tag create --title "Production"
+xy tag create --id production --title "Production"
+xy tag create --title "High Priority" --icon alert-rhombus --notes "Needs attention"
+xy tag create --title "From JSON" --json @tag.json
+cat tag.json | xy tag create --json @-
+xy tag create --title "Preview" --dry
+```
+
+Supported creation fields are `id`, `title`, `icon`, and `notes`. Tag IDs contain lowercase letters, digits, and underscores. IDs beginning with an underscore are reserved for system Tags, so user-defined IDs should not use that prefix. Material Design icon names may be supplied with or without the `mdi-` prefix.
+
+## tag update
+
+Update a Tag by exact ID. Only the selected fields are sent to xyOps, so omitted properties remain unchanged.
+
+```sh
+xy tag update TAG_ID --title "New Title"
+xy tag update TAG_ID --icon tag-heart-outline
+xy tag update TAG_ID --notes "Updated notes"
+xy tag update TAG_ID --icon '' --notes ''
+xy tag update TAG_ID --json @tag-update.json
+cat tag-update.json | xy tag update TAG_ID --json @-
+xy tag update TAG_ID --notes "Preview" --dry
+```
+
+Editable fields are `title`, `icon`, and `notes`. The Tag ID and server-managed audit fields cannot be changed. Notes may contain multiple lines. `--dry` previews the sparse outgoing request, and `--format json` prints the API success response.
+
+## tag delete
+
+Permanently delete a Tag by exact ID. Explicit confirmation is required.
+
+```sh
+xy tag delete TAG_ID --confirm
+xy tag delete --id TAG_ID --confirm
+xy tag delete TAG_ID --confirm --dry
+```
+
+Deletion cannot be undone. Existing Events, historical Jobs, Tickets, actions, and limits may still contain the deleted Tag ID. Deleting a definition does not rewrite those records. `--dry` previews the request without deleting anything.
 
 ## categories
 
