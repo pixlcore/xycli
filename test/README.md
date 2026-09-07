@@ -54,6 +54,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `marketplace` | Search, details, README rendering, install preview, confirmed install and upgrade, validation, help |
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |
 | `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
+| `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |
 | `transfer` | All portable object types, preview and confirmation, dependencies, gzip, validation, partial failures |
 | `transfer-apikey` | Export, deletion, import, and authentication with the original plaintext secret |
@@ -68,6 +69,8 @@ The mutating suites create uniquely named disposable objects and remove them in 
 The Marketplace suite installs and upgrades `pixlcore/xyplug-ai`, then deletes it without executing or attaching it to an Event. The suite requires this product to be uninstalled when the test begins and removes its own installation during cleanup.
 
 API key tests keep plaintext secrets in memory. Export files contain the stored hash and mask, and are deleted after the test. Captured CLI output is omitted from process failure messages because it can contain credentials.
+
+Secret Vault tests use uniquely generated disposable values. They verify sensitive values by digest wherever practical, ensure dry-run and verbose diagnostics are redacted, and delete the vault during cleanup. Confirmed decrypt checks intentionally exercise the audited API operation.
 
 A forced process termination or an unavailable server can prevent server cleanup. If a run is interrupted, check for its uniquely named `cli_*` fixtures before rerunning. The tests never remove unrelated objects.
 

@@ -14,12 +14,13 @@ xy channels
 xy log xyOps --rows 100
 xy monitors
 xy plugins
+xy secrets
 xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
 ```
 
-The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, and `plugins`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
+The CLI provides collection commands such as `events`, `jobs`, `keys`, `alerts`, `buckets`, `categories`, `channels`, `monitors`, `plugins`, and `secrets`, plus singular routers for working with individual resources. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown.  You can use the `help` system to get details for each command:
 
 ```sh
 xy help events
@@ -50,6 +51,10 @@ xy help monitor test
 xy help plugins
 xy help plugin
 xy help plugin create
+xy help secrets
+xy help secret
+xy help secret create
+xy help secret decrypt
 xy help marketplace
 xy help marketplace search
 xy help marketplace get
@@ -596,6 +601,133 @@ xy key delete KEY_ID --confirm --dry
 ```
 
 Deletion cannot be undone. Any service using the deleted key immediately loses access.
+
+## secrets
+
+List Secret Vault metadata without decrypting any variable values. Search text matches vault IDs, titles, notes, and variable names. Named filters may be combined.
+
+```sh
+xy secrets
+xy secrets SEARCH_TEXT
+xy secrets --enabled false
+xy secrets --name API_TOKEN
+xy secrets --event EVENT_ID
+xy secrets --category CATEGORY_ID --plugin PLUGIN_ID
+xy secrets --hook WEB_HOOK_ID
+xy secrets --limit 10 --page 2
+xy secrets --format json
+```
+
+The list includes variable names and assignment counts, but never encrypted or decrypted values. `--web_hook` is also accepted as a longer alias for `--hook`.
+
+## secret
+
+Work with one Secret Vault by viewing, creating, updating, decrypting, or deleting it. A bare ID or fuzzy title opens safe vault metadata. Updates, decryption, and deletion require the exact internal Vault ID.
+
+```sh
+xy secret SECRET_VAULT_ID_OR_TITLE
+xy secret get SECRET_VAULT_ID_OR_TITLE
+xy secret list
+xy secret create --title "My Vault" --fields @secrets.json
+xy secret update SECRET_VAULT_ID --notes "Updated notes"
+xy secret decrypt SECRET_VAULT_ID --confirm
+xy secret delete SECRET_VAULT_ID --confirm
+```
+
+Server-side privileges determine which operations the configured API Key may perform. xyOps requires administrator access for create, update, decrypt, and delete operations.
+
+## secret list
+
+List and filter Secret Vault metadata using the same options as `xy secrets`.
+
+```sh
+xy secret list
+xy secret list --enabled true
+xy secret list --plugin PLUGIN_ID
+xy secret list --hook WEB_HOOK_ID
+```
+
+## secret get
+
+View one Secret Vault's safe metadata, including variable names, assignments, notes, author, dates, and revision. Variable values are not returned by this operation.
+
+```sh
+xy secret SECRET_VAULT_ID_OR_TITLE
+xy secret get --id SECRET_VAULT_ID
+xy secret get --title "My Vault"
+xy secret SECRET_VAULT_ID --format json
+```
+
+## secret create
+
+Create a Secret Vault with a required title. New vaults default to enabled with no variables or assignments. Supply `fields` as a complete JSON array containing `name` and `value` strings.
+
+```json
+[
+	{ "name": "API_TOKEN", "value": "replace-me" },
+	{ "name": "PRIVATE_KEY", "value": "line one\nline two" }
+]
+```
+
+Use a private file or standard input whenever practical. Putting plaintext values directly on the command line can save them in your shell history.
+
+```sh
+xy secret create --title "My Vault" --fields @secrets.json
+cat secrets.json | xy secret create --title "My Vault" --fields @-
+xy secret create --title "Service" --fields @secrets.json --events "EVENT_ID,EVENT_ID_2"
+xy secret create --title "Shared" --fields @secrets.json --category CATEGORY_ID --plugin PLUGIN_ID --hook WEB_HOOK_ID
+xy secret create --title "Empty Vault"
+xy secret create --title "Preview" --fields @secrets.json --dry
+```
+
+Complete assignment lists are accepted through `events`, `categories`, `plugins`, and `web_hooks` as comma-separated strings or JSON arrays. The singular `event`, `category`, `plugin`, `web_hook`, and `hook` options append one or more IDs and may be repeated. Every assignment is validated against the objects visible to the configured API Key.
+
+Variable names use the portable environment-variable form: letters, digits, and underscores, with a letter or underscore first. Names must be unique within a vault. Dry-run and verbose request output replaces every variable value with `[REDACTED]`. `--format json` returns safe vault metadata only.
+
+## secret update
+
+Update a Secret Vault by exact ID. Metadata-only changes are sparse and preserve the encrypted variables and unrelated settings.
+
+```sh
+xy secret update SECRET_VAULT_ID --title "New Title" --notes "Updated notes"
+xy secret update SECRET_VAULT_ID --enabled false
+xy secret update SECRET_VAULT_ID --events "EVENT_ID,EVENT_ID_2"
+xy secret update SECRET_VAULT_ID --plugins '[]' --hook WEB_HOOK_ID
+xy secret update SECRET_VAULT_ID --fields @secrets.json
+cat secrets.json | xy secret update SECRET_VAULT_ID --fields @-
+xy secret update SECRET_VAULT_ID --fields '[]'
+xy secret update SECRET_VAULT_ID --notes "Preview" --dry
+```
+
+When `fields` is supplied, it must contain the complete replacement array. Individual variable updates, dotted field paths, and a singular `field` option are intentionally unsupported because updating one value requires decrypting the existing vault first. Omitting `fields` leaves all encrypted values untouched. Supplying `[]` removes every variable.
+
+Complete assignment lists replace the saved lists. Singular assignment aliases append to the saved list without duplicates. Use an empty array to clear a list. Dry-run and verbose output always redact variable values.
+
+## secret decrypt
+
+Decrypt every variable in a Secret Vault by exact ID. Explicit confirmation is required because xyOps records this access in its activity log.
+
+```sh
+xy secret decrypt SECRET_VAULT_ID --confirm
+xy secret decrypt SECRET_VAULT_ID --confirm --format json
+xy secret decrypt SECRET_VAULT_ID --confirm --dry
+```
+
+Human-readable output gives each variable its own titled section and prints the value exactly, without a table or surrounding box. This preserves multiline values for selection and copying. JSON output is an array of plaintext `{ "name", "value" }` objects. Treat both forms as sensitive and avoid redirecting them to an insecure destination.
+
+Without `--confirm`, the command displays the target vault and a warning without calling the decrypt API. `--dry` also avoids the API call and therefore does not create a secret-access audit event. Verbose API-response diagnostics are redacted, while the final confirmed decrypt output intentionally contains plaintext.
+
+## secret delete
+
+Permanently delete a Secret Vault by exact ID. Explicit confirmation is required.
+
+```sh
+xy secret delete SECRET_VAULT_ID --confirm
+xy secret delete --id SECRET_VAULT_ID --confirm
+xy secret delete SECRET_VAULT_ID --confirm --dry
+```
+
+Deletion cannot be undone. Review Events, Categories, Plugins, and Web Hooks that may rely on the vault before deleting it. `--dry` previews the request without deleting anything.
 
 ## categories
 

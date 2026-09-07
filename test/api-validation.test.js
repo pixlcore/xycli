@@ -37,7 +37,8 @@ test('standard API validation accepts documented and request-only properties', (
 		createChannel: { title: 'Channel', max_per_day: 10 },
 		updateEvent: { id: 'event', params: { notess: 'Nested keys are allowed' }, update_state: { cursor: 1234 } },
 		createMonitor: { title: 'Monitor', source: 'cpu.currentLoad', divide_by_delta: true },
-		updatePlugin: { id: 'plugin', marketplace: { id: 'author/repo', version: 'v1.0.0' } }
+		updatePlugin: { id: 'plugin', marketplace: { id: 'author/repo', version: 'v1.0.0' } },
+		createSecret: { title: 'Vault', fields: [{ name: 'TOKEN', value: 'Opaque nested value' }], web_hooks: ['hook'] }
 	};
 	
 	Object.entries(requests).forEach( ([method, request]) => {
@@ -57,6 +58,10 @@ test('standard API validation rejects unknown properties with careful suggestion
 	assert.throws(
 		() => context.validateStandardAPIRequest('createPlugin', { title: 'Plugin', completely_unknown: true }),
 		/^Error: Unsupported property for create_plugin: "completely_unknown"\.$/
+	);
+	assert.throws(
+		() => context.validateStandardAPIRequest('updateSecret', { id: 'vault', notess: 'Typo' }),
+		/Unsupported property for update_secret: "notess"\. Did you mean "notes"\?/
 	);
 });
 
