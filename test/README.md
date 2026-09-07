@@ -56,7 +56,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
 | `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
-| `tickets` | Search, CRUD, number resolution, comments, attachments, Events, related Job lookup, sparse updates, validation, help |
+| `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |
 | `transfer` | All portable object types, preview and confirmation, dependencies, gzip, validation, partial failures |
 | `transfer-apikey` | Export, deletion, import, and authentication with the original plaintext secret |

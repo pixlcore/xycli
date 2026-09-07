@@ -128,6 +128,29 @@ test('tickets', async t => {
 			assert.ok(files.some( file => file.filename == Path.basename(secondFile) && file.ticket == id));
 		});
 
+		const secondMeta = files.find( file => file.filename == Path.basename(secondFile));
+		const downloadedFile = Path.join(temp, 'downloaded-attachment.json');
+		await check('download saves exact attachment bytes by File ID', () => {
+			const out = xy(['ticket', 'download', String(num), secondMeta.id, downloadedFile]);
+			assert.match(out, /Successfully downloaded Ticket file/);
+			assert.equal(fs.readFileSync(downloadedFile, 'utf8'), fs.readFileSync(secondFile, 'utf8'));
+		});
+
+		await check('download dry run resolves filename and default output path', () => {
+			const req = json(['ticket', 'download', String(num), secondMeta.filename, '--dry']);
+			assert.equal(req.ticket, id);
+			assert.equal(req.number, num);
+			assert.equal(req.file, secondMeta.filename);
+			assert.equal(req.request.path, secondMeta.path.replace(/^files\//, ''));
+			assert.equal(req.request.download, secondMeta.filename);
+			assert.equal(req.output, Path.resolve(secondMeta.filename));
+		});
+
+		await check('download refuses unknown files and existing destinations', () => {
+			xy(['ticket', 'download', String(num), 'missing-file-id'], { fail: true });
+			xy(['ticket', 'download', String(num), secondMeta.id, downloadedFile], { fail: true });
+		});
+
 		if (event) await apiCall('updateTicket', { id: id, events: [{ id: event.id, params: {} }] });
 
 		await check('human detail renders body, comments, files, and Events', () => {
@@ -135,7 +158,7 @@ test('tickets', async t => {
 			for (const text of [
 				'TICKET #' + num, 'Number', '#' + num, 'Ticket ID', id, subject,
 				'TICKET BODY', 'Test Ticket', '• Bold item with code',
-				'TICKET FILES', Path.basename(firstFile), Path.basename(secondFile),
+				'TICKET FILES', Path.basename(firstFile), Path.basename(secondFile), 'Download a file',
 				'Comment by admin', 'Investigation update', '• Checked the logs'
 			]) assert.ok(out.includes(text), text);
 			if (event) {
@@ -208,7 +231,7 @@ test('tickets', async t => {
 
 		for (const topic of [
 			'tickets', 'ticket', 'ticket list', 'ticket get', 'ticket create',
-			'ticket update', 'ticket comment', 'ticket upload', 'ticket delete'
+			'ticket update', 'ticket comment', 'ticket upload', 'ticket download', 'ticket delete'
 		]) {
 			await check('help ' + topic, () => assert.ok(xy(['help', ...topic.split(' ')]).length > 100));
 		}

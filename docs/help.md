@@ -873,6 +873,7 @@ xy ticket create --subject "Investigate backup failure" --status draft
 xy ticket update 12345 close
 xy ticket 12345 --comment "Investigation started."
 xy ticket upload 12345 --file report.txt
+xy ticket download 12345 FILE_ID
 xy ticket delete 12345 --confirm
 ```
 
@@ -979,6 +980,21 @@ xy ticket upload 12345 --file report.txt --dry
 ```
 
 The CLI always sends `save: true`, so uploads become permanent Ticket attachments rather than temporary body-editor files. Attachment deletion is not included in the v1 Ticket commands.
+
+## ticket download
+
+Download one Ticket attachment to disk. Supply either the unique File ID shown by `ticket get`, or an exact filename. If a Ticket contains multiple attachments with the same filename, use the File ID to select one unambiguously.
+
+```sh
+xy ticket download 12345 FILE_ID
+xy ticket download 12345 report.txt
+xy ticket download 12345 FILE_ID ./downloads/report.txt
+xy ticket download 12345 FILE_ID --output ./report-copy.txt
+xy ticket download --id tabc123 --file FILE_ID --download ./report-copy.txt
+xy ticket download 12345 FILE_ID --dry
+```
+
+The output path defaults to the attachment's original filename in the current directory. The command refuses to overwrite an existing local file. A dry run resolves the Ticket and attachment and prints the complete download request without writing anything.
 
 ## ticket delete
 
