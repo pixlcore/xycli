@@ -158,8 +158,8 @@ test('servers', async t => {
 	
 	await check('Server view renders standard sections and expansion hints', () => {
 		const out = xy(['server', active[0].id, '--limit', '2']);
-		assert.match(out, /LIVE SERVER VIEW - Realtime/);
-		assert.ok(out.indexOf('LIVE SERVER VIEW - Realtime') < out.indexOf('SERVER SUMMARY'));
+		assert.match(out, /LIVE SERVER VIEW - Real-time/);
+		assert.ok(out.indexOf('LIVE SERVER VIEW - Real-time') < out.indexOf('SERVER SUMMARY'));
 		assert.match(out, /SERVER SUMMARY/);
 		assert.match(out, /SERVER ALERTS/);
 		assert.match(out, /SERVER JOBS/);

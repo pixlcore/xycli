@@ -431,6 +431,10 @@ xy server add --platform linux
 xy server search
 xy server search SEARCH_TEXT
 xy server history SERVER_ID YYYY/MM/DD
+xy server SERVER_ID --label "My Custom Label"
+xy server SERVER_ID --snapshot
+xy server SERVER_ID --watch 300
+xy server SERVER_ID --delete
 ```
 
 ## server get
@@ -507,6 +511,30 @@ xy server search --limit 20 --page 2
 ```
 
 Available fields include `--groups`, `--os_platform`, `--os_distro`, `--os_release`, `--os_arch`, `--cpu_virt`, `--cpu_brand`, `--cpu_cores`, `--created`, and `--modified`. Short aliases such as `--group`, `--os`, `--platform`, `--distro`, `--release`, `--arch`, `--virt`, and `--cpu` are also accepted.
+
+## server commands
+
+Edit a Server, take a snapshot, set a temporary snapshot watch, or permanently delete it. You can identify a connected or recently disconnected Server by ID, hostname, or label.
+
+```sh
+xy server SERVER_ID --label "My Custom Label"
+xy server SERVER_ID --enabled false
+xy server SERVER_ID --icon baguette
+xy server SERVER_ID --groups "group1,group2"
+xy server SERVER_ID --groups ""
+xy server SERVER_ID --max_jobs 5
+xy server SERVER_ID --user_data '{"foo":"bar"}'
+xy server SERVER_ID --user_data @server-data.json
+xy server SERVER_ID --snapshot
+xy server SERVER_ID --watch 300
+xy server SERVER_ID --watch 0
+xy server SERVER_ID --delete
+xy server SERVER_ID --delete --confirm
+```
+
+An empty `--groups` value restores automatic hostname-based grouping. Snapshot and watch commands require a connected Server. A watch takes one snapshot per minute for the requested number of seconds, and `--watch 0` removes it.
+
+Server deletion always removes the Server record, all monitoring history, and all snapshots. If the Server is connected, xySat is also uninstalled. The command shows a detailed preview first and does nothing until you add `--confirm`.
 
 ## upcoming
 
