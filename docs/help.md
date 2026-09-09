@@ -430,6 +430,7 @@ xy server list
 xy server add --platform linux
 xy server search
 xy server search SEARCH_TEXT
+xy server history SERVER_ID YYYY/MM/DD
 ```
 
 ## server get
@@ -454,6 +455,22 @@ xy server SERVER_ID --limit 20 --page 2
 The `--pid` option opens a focused process view containing only the selected process details and its parent and child processes. Use `--verbose` to include monitors, processes, and network connections together in the main Server view.
 
 Quick Look charts are available for connected Servers that support per-second monitoring. Offline Servers display their last-known monitoring state instead.
+
+## server history
+
+View historical monitoring charts, alerts, and completed jobs for one Server. Each command displays exactly one hour, day, month, or year. Dates and times are interpreted in the Server's local time zone.
+
+```sh
+xy server history SERVER_ID 2026/09/08/14
+xy server history SERVER_ID 2026/09/08
+xy server history SERVER_ID 2026/09
+xy server history SERVER_ID 2026
+xy server history SERVER_ID 2026/09/08 --limit 20 --page 2
+```
+
+The number of date components selects the zoom level. Use `YYYY/MM/DD/HH` for an hour, `YYYY/MM/DD` for a day, `YYYY/MM` for a month, or `YYYY` for a year.
+
+You can use a hostname or Server label in place of the ID when that Server is connected or recently disconnected. The global `--page` and `--limit` options apply to both the alert and completed-job tables.
 
 ## server add
 

@@ -158,6 +158,8 @@ test('servers', async t => {
 	
 	await check('Server view renders standard sections and expansion hints', () => {
 		const out = xy(['server', active[0].id, '--limit', '2']);
+		assert.match(out, /LIVE SERVER VIEW - Realtime/);
+		assert.ok(out.indexOf('LIVE SERVER VIEW - Realtime') < out.indexOf('SERVER SUMMARY'));
 		assert.match(out, /SERVER SUMMARY/);
 		assert.match(out, /SERVER ALERTS/);
 		assert.match(out, /SERVER JOBS/);
@@ -205,6 +207,7 @@ test('servers', async t => {
 			assert.match(out, new RegExp('Process ID:\\s+' + process.pid));
 			assert.match(out, /Command:/);
 			assert.doesNotMatch(out, /SERVER SUMMARY/);
+			assert.doesNotMatch(out, /LIVE SERVER VIEW|OFFLINE SERVER/);
 			assert.doesNotMatch(out, /QUICK LOOK/);
 			assert.doesNotMatch(out, /MEMORY DETAILS/);
 			assert.doesNotMatch(out, /Other Commands:/);
@@ -220,8 +223,72 @@ test('servers', async t => {
 		assert.match(pid, /Server process ID must be a positive integer/);
 	});
 	
+	const latest = await apiCall('getLatestMonitorData', { server: active[0].id, sys: 'hourly', limit: 1 });
+	assert.ok(latest.rows && latest.rows.length, 'Server history tests require recent monitoring data');
+	const historyDate = new Date(latest.rows[latest.rows.length - 1].date * 1000);
+	const pad = number => String(number).padStart(2, '0');
+	const historyParts = {
+		year: String(historyDate.getFullYear()),
+		month: historyDate.getFullYear() + '/' + pad(historyDate.getMonth() + 1),
+		day: historyDate.getFullYear() + '/' + pad(historyDate.getMonth() + 1) + '/' + pad(historyDate.getDate()),
+		hour: historyDate.getFullYear() + '/' + pad(historyDate.getMonth() + 1) + '/' + pad(historyDate.getDate()) + '/' + pad(historyDate.getHours())
+	};
+	
+	await check('historical view supports all four fixed zoom levels', () => {
+		const cases = [
+			[historyParts.hour, 'hourly'],
+			[historyParts.day, 'daily'],
+			[historyParts.month, 'monthly'],
+			[historyParts.year, 'yearly']
+		];
+		
+		for (const [date, mode] of cases) {
+			const result = json(['server', 'history', active[0].id, date, '--limit', '1']);
+			assert.equal(result.server.id, active[0].id);
+			assert.equal(result.range.mode, mode);
+			assert.ok(result.range.start < result.range.end);
+			assert.ok(result.range.monitor_limit > 0);
+			assert.ok(Array.isArray(result.monitors));
+			assert.ok(Array.isArray(result.alerts.rows));
+			assert.ok(Array.isArray(result.jobs.rows));
+			assert.ok(result.alerts.rows.length <= 1);
+			assert.ok(result.jobs.rows.length <= 1);
+		}
+	});
+	
+	await check('historical view accepts a local Server label', () => {
+		const result = json(['server', 'history', active[0].title, historyParts.hour]);
+		assert.equal(result.server.id, active[0].id);
+		assert.equal(result.range.mode, 'hourly');
+		assert.ok(result.monitors.length, 'Selected hour contains monitoring data');
+	});
+	
+	await check('historical view renders summary, monitors, alerts and jobs in order', () => {
+		const out = xy(['server', 'history', active[0].hostname, historyParts.hour, '--limit', '1']);
+		const sections = [
+			out.indexOf('SERVER SUMMARY'),
+			out.indexOf('SERVER MONITORS'),
+			out.indexOf('SERVER ALERTS'),
+			out.indexOf('SERVER JOBS')
+		];
+		assert.ok(sections.every(index => index >= 0), 'Every historical section is shown');
+		assert.ok(sections.every((index, idx) => !idx || sections[idx - 1] < index), 'Historical sections are in display order');
+		assert.match(out, /Other Commands:/);
+	});
+	
+	await check('historical view validates dates and options', () => {
+		const format = xy(['server', 'history', active[0].id, '2026/01/02/03/04'], { fail: true });
+		assert.match(format, /Server history date must use YYYY/);
+		
+		const date = xy(['server', 'history', active[0].id, '2026/02/30'], { fail: true });
+		assert.match(date, /Invalid Server history date: 2026\/02\/30/);
+		
+		const option = xy(['server', 'history', active[0].id, historyParts.day, '--bogus'], { fail: true });
+		assert.match(option, /Unsupported Server history option: "--bogus"/);
+	});
+	
 	await check('Server help chapters render', () => {
-		for (const section of ['servers', 'server', 'server get', 'server add', 'server search']) {
+		for (const section of ['servers', 'server', 'server get', 'server history', 'server add', 'server search']) {
 			assert.match(xy(['help', ...section.split(' ')]), new RegExp('HELP: ' + section.toUpperCase()));
 		}
 	});
