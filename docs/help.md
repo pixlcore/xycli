@@ -421,14 +421,39 @@ Available named filters include `--id`, `--title`, `--hostname`, `--ip`, `--os`,
 
 ## server
 
-Generate an installation command for a new Server, or search current and historical Server records.
+View a Server's live or last-known state, generate an installation command for a new Server, or search current and historical Server records.
 
 ```sh
+xy server SERVER_ID
+xy server SERVER_ID --verbose
 xy server list
 xy server add --platform linux
 xy server search
 xy server search SEARCH_TEXT
 ```
+
+## server get
+
+View the current state of a connected Server, or the last-known state of an offline Server. You can identify the Server by ID, hostname, or label when it is connected or recently disconnected. The summary includes system information, alerts, jobs, monitoring charts, memory, CPU, network interfaces, and filesystems.
+
+Use the optional detail flags to show larger tables and monitoring timelines:
+
+```sh
+xy server SERVER_ID
+xy server minecraft2
+xy server render-worker-03
+xy server get SERVER_ID
+xy server SERVER_ID --verbose
+xy server SERVER_ID --monitors
+xy server SERVER_ID --processes
+xy server SERVER_ID --connections
+xy server SERVER_ID --pid 1234
+xy server SERVER_ID --limit 20 --page 2
+```
+
+The `--pid` option opens a focused process view containing only the selected process details and its parent and child processes. Use `--verbose` to include monitors, processes, and network connections together in the main Server view.
+
+Quick Look charts are available for connected Servers that support per-second monitoring. Offline Servers display their last-known monitoring state instead.
 
 ## server add
 

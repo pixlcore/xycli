@@ -140,8 +140,88 @@ test('servers', async t => {
 		assert.match(out, /Did you mean "--os_platform"\?/);
 	});
 	
+	await check('Server view returns live snapshot data as JSON', () => {
+		assert.ok(active[0].title, 'Connected Server has a label');
+		const result = json(['server', active[0].id]);
+		const explicit = json(['server', 'get', active[0].id]);
+		const hostname = json(['server', active[0].hostname]);
+		const title = json(['server', active[0].title]);
+		assert.equal(result.server.id, active[0].id);
+		assert.equal(explicit.server.id, active[0].id);
+		assert.equal(hostname.server.id, active[0].id);
+		assert.equal(title.server.id, active[0].id);
+		assert.equal(result.online, true);
+		assert.ok(result.data && result.data.data, 'Server view includes monitoring data');
+		assert.ok(Array.isArray(result.quickmon), 'Server view includes a Quick Look collection');
+		assert.ok(Array.isArray(result.monitors), 'Server view includes a monitor timeline collection');
+	});
+	
+	await check('Server view renders standard sections and expansion hints', () => {
+		const out = xy(['server', active[0].id, '--limit', '2']);
+		assert.match(out, /SERVER SUMMARY/);
+		assert.match(out, /SERVER ALERTS/);
+		assert.match(out, /SERVER JOBS/);
+		assert.match(out, /MEMORY DETAILS/);
+		assert.match(out, /CPU DETAILS/);
+		assert.match(out, /SERVER MONITOR SUMMARY/);
+		assert.match(out, /SERVER MONITORS\n \(Shown in verbose mode, or add --monitors\.\)/);
+		assert.match(out, /SERVER PROCESSES\n \(Shown in verbose mode, or add --processes\.\)/);
+		assert.match(out, /NETWORK CONNECTIONS\n \(Shown in verbose mode, or add --connections\.\)/);
+		assert.match(out, /NETWORK INTERFACES/);
+		assert.match(out, /FILESYSTEMS/);
+		assert.match(out, /Other Commands:/);
+		assert.match(out, new RegExp('xy server ' + active[0].id + ' --pid 1234'));
+	});
+	
+	await check('Server view loads opt-in monitor timeline data', () => {
+		const result = json(['server', active[0].id, '--monitors']);
+		assert.ok(Array.isArray(result.monitors));
+		assert.ok(result.monitors.length, 'Connected Server has hourly monitor data');
+		assert.ok(result.monitors.every(row => row.date && row.totals));
+		
+		const out = xy(['server', active[0].id, '--monitors', '--limit', '1']);
+		assert.match(out, /SERVER MONITORS - LAST HOUR/);
+		assert.doesNotMatch(out, /SERVER MONITORS\n \(Shown in verbose mode/);
+	});
+	
+	await check('Server view renders process and connection tables with shared pagination', () => {
+		const out = xy(['server', active[0].id, '--processes', '--connections', '--limit', '1', '--page', '1']);
+		assert.match(out, /SERVER PROCESSES/);
+		assert.doesNotMatch(out, /SERVER PROCESSES\n \(Shown in verbose mode/);
+		assert.match(out, /NETWORK CONNECTIONS/);
+		assert.doesNotMatch(out, /NETWORK CONNECTIONS\n \(Shown in verbose mode/);
+		assert.match(out, /NETWORK INTERFACES/);
+		assert.match(out, /FILESYSTEMS/);
+		assert.match(out, /page 1 of/i);
+	});
+	
+	const snapshot = await apiCall('getServer', { id: active[0].id });
+	const process = snapshot.data && snapshot.data.data && snapshot.data.data.processes && snapshot.data.data.processes.list && snapshot.data.data.processes.list[0];
+	if (process) {
+		await check('process detail is a focused page with its family tree', () => {
+			const out = xy(['server', active[0].id, '--pid', String(process.pid)]);
+			assert.match(out, /PROCESS DETAILS/);
+			assert.match(out, /PROCESS FAMILY/);
+			assert.match(out, new RegExp('Process ID:\\s+' + process.pid));
+			assert.match(out, /Command:/);
+			assert.doesNotMatch(out, /SERVER SUMMARY/);
+			assert.doesNotMatch(out, /QUICK LOOK/);
+			assert.doesNotMatch(out, /MEMORY DETAILS/);
+			assert.doesNotMatch(out, /Other Commands:/);
+		});
+	}
+	
+	await check('Server view rejects unknown options and malformed process IDs', () => {
+		const option = xy(['server', active[0].id, '--proceses'], { fail: true });
+		assert.match(option, /Unsupported Server view option: "--proceses"/);
+		assert.match(option, /Did you mean "--processes"\?/);
+		
+		const pid = xy(['server', active[0].id, '--pid', 'abc'], { fail: true });
+		assert.match(pid, /Server process ID must be a positive integer/);
+	});
+	
 	await check('Server help chapters render', () => {
-		for (const section of ['servers', 'server', 'server add', 'server search']) {
+		for (const section of ['servers', 'server', 'server get', 'server add', 'server search']) {
 			assert.match(xy(['help', ...section.split(' ')]), new RegExp('HELP: ' + section.toUpperCase()));
 		}
 	});
