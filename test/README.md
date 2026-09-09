@@ -8,7 +8,7 @@ Use Node.js 22 or newer and install the CLI dependencies with `npm install`.
 
 Start xyOps at `http://localhost:5522` and configure an administrator API key using your normal CLI config file or the `XYOPS_API_KEY` environment variable. The tests read the same configuration as `xy`, including `XYOPS_BASE_URL` overrides. They refuse to run against a different server address.
 
-Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The monitor tests also need a connected server and a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
+Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The Server tests need a connected server, and the Monitor tests also need a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
 
 ## Running Tests
 
@@ -55,6 +55,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `pagination` | Pagination arguments, search requests, command variants, resource limits |
 | `plugins` | CRUD for all four Plugin types, parameters, groups, validation, help |
 | `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
+| `servers` | Active and recently offline lists, local filters, installer generation, historical search, pagination, validation, help |
 | `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |

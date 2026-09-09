@@ -15,6 +15,7 @@ xy channels
 xy log xyOps --rows 100
 xy monitors
 xy plugins
+xy servers
 xy secrets
 xy tags
 xy tickets
@@ -60,6 +61,10 @@ xy help monitor test
 xy help plugins
 xy help plugin
 xy help plugin create
+xy help servers
+xy help server
+xy help server add
+xy help server search
 xy help secrets
 xy help secret
 xy help secret create
@@ -395,6 +400,71 @@ xy system broadcast "Test message" --dry
 ```
 
 Available notification types are `info`, `warning`, `error`, and `critical`. Use `--sound FILENAME` to play a sound that is already available in xyOps.
+
+## servers
+
+List connected Servers and recently disconnected Servers in one view. Results are sorted alphabetically by custom label or hostname.
+
+Add search text to match Server IDs, labels, hostnames, IP addresses, operating systems, CPU details, xySat versions, or Server Groups. Named filters use case-insensitive partial matching, so a partial IP address is accepted here.
+
+```sh
+xy servers
+xy servers SEARCH_TEXT
+xy servers --os linux
+xy servers --ip 192.168.1.
+xy servers --group production
+xy servers --online true
+xy servers --limit 20 --page 2
+```
+
+Available named filters include `--id`, `--title`, `--hostname`, `--ip`, `--os`, `--platform`, `--distro`, `--release`, `--arch`, `--cpu`, `--satellite`, `--group`, `--status`, `--online`, and `--enabled`.
+
+## server
+
+Generate an installation command for a new Server, or search current and historical Server records.
+
+```sh
+xy server list
+xy server add --platform linux
+xy server search
+xy server search SEARCH_TEXT
+```
+
+## server add
+
+Generate a one-line xySat installation command for Linux, macOS, Windows, or Docker. Copy the resulting command and run it on the Server you want to add.
+
+```sh
+xy server add --platform linux
+xy server add --platform windows --title "My Custom Server"
+xy server add --platform macos --icon fire-truck
+xy server add --platform docker --groups GROUP1,GROUP2
+xy server add --platform linux --enabled false
+xy server add --platform linux --expires 3600
+```
+
+The installation token is valid for 24 hours by default. Use `--expires SECONDS` to choose a shorter lifetime. Treat the generated command as sensitive until its token expires.
+
+If you specify Server Groups, each value must be an existing Group ID. Leave `--groups` unset to use automatic hostname-based grouping.
+
+## server search
+
+Search all current and historical Server records. Unlike the active `servers` view, this searches the database and requires complete indexed terms such as a full IP address.
+
+Both singular and plural command forms are supported:
+
+```sh
+xy server search
+xy servers search
+xy server search SEARCH_TEXT
+xy server search "192.168.1.25"
+xy server search --os_platform linux --os_arch arm64
+xy server search --groups GROUP_ID
+xy server search --modified today
+xy server search --limit 20 --page 2
+```
+
+Available fields include `--groups`, `--os_platform`, `--os_distro`, `--os_release`, `--os_arch`, `--cpu_virt`, `--cpu_brand`, `--cpu_cores`, `--created`, and `--modified`. Short aliases such as `--group`, `--os`, `--platform`, `--distro`, `--release`, `--arch`, `--virt`, and `--cpu` are also accepted.
 
 ## upcoming
 
