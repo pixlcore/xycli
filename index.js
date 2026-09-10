@@ -332,6 +332,7 @@ const app = {
 		delete this.args.other;
 		
 		this.mergeDotArgs( this.args, this.args );
+		if (this.verbose) this.args.verbose = true;
 		
 		println( "\n " + this.color('theme').bold("Calling API: " + name) );
 		
