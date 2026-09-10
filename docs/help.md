@@ -165,9 +165,7 @@ Read a plain JSON or gzip-compressed XYPDF file and preview its contents and pla
 xy import event.json
 xy import workflow.json.gz
 xy import workflow.json.gz --format json
-xy import workflow.json.gz --confirm
-xy import workflow.json.gz --confirm --dry
-xy import workflow.json.gz --confirm --format json
+xy import workflow.json.gz --dry
 ```
 
 The file determines the object types and may contain any combination of the 12 types supported by `xy help export`. Before making changes, the preview checks the file format, required xyOps version, object types, titles, IDs, and duplicate IDs.
@@ -257,13 +255,13 @@ xy system
 xy system dashboard
 xy system export xyops-export.json.gz
 xy system import xyops-export.json.gz
-xy system delete events,categories,buckets --confirm
+xy system delete events,categories,buckets
 xy system maintenance
 xy system optimize
 xy system reset rates
 xy system restart conductor xyops02.example.com
 xy system shutdown conductor xyops02.example.com
-xy system upgrade workers server1,server2 --confirm
+xy system upgrade workers server1,server2
 xy system email test@example.com
 xy system diagnostic
 xy system broadcast "System maintenance begins soon"
@@ -296,9 +294,8 @@ Import an xyOps or Cronicle bulk data archive. The command shows the selected fi
 
 ```sh
 xy system import xyops-export.json.gz
-xy system import xyops-export.json.gz --confirm
-xy system import cronicle-export.txt.gz --source cronicle --confirm
-xy system import xyops-export.json.gz --confirm --dry
+xy system import cronicle-export.txt.gz --source cronicle
+xy system import xyops-export.json.gz --dry
 ```
 
 Bulk imports can replace existing data, stop running jobs, clear queued jobs, and pause the scheduler. Back up your system and review the selected file before confirming.
@@ -309,9 +306,8 @@ Permanently delete selected categories of system data. Pass a comma-separated li
 
 ```sh
 xy system delete events,categories,buckets
-xy system delete events,categories,buckets --confirm
-xy system delete jobs,activity --confirm
-xy system delete all --confirm
+xy system delete jobs,activity
+xy system delete all
 ```
 
 Names normally select the matching configuration list or database index. `alerts` selects both Alert definitions and Alert history. Use an explicit `list:` or `db:` prefix when you only want one, such as `list:alerts` or `db:alerts`.
@@ -356,7 +352,6 @@ Restart a conductor server by hostname. The command shows the selected hostname 
 
 ```sh
 xy system restart conductor xyops02.example.com
-xy system restart conductor xyops02.example.com --confirm
 ```
 
 Restarting a conductor may briefly interrupt service while the process starts again.
@@ -367,7 +362,6 @@ Shut down a conductor server by hostname. The command shows the selected hostnam
 
 ```sh
 xy system shutdown conductor xyops02.example.com
-xy system shutdown conductor xyops02.example.com --confirm
 ```
 
 The conductor remains offline until it is started again outside the CLI.
@@ -380,7 +374,6 @@ Upgrade or downgrade selected worker or conductor servers. Worker targets may be
 xy system upgrade conductors joemax.lan --version v1.0.96
 xy system upgrade workers server1,server2
 xy system upgrade workers GROUP_ID --version latest --stagger 30
-xy system upgrade conductors joemax.lan --version v1.0.96 --confirm
 ```
 
 The default version is `latest`, and the default delay between servers is 60 seconds. Use `--stagger SECONDS` to change the delay. Review the target summary, then add `--confirm` to start the upgrade.
@@ -549,7 +542,6 @@ xy server SERVER_ID --snapshot
 xy server SERVER_ID --watch 300
 xy server SERVER_ID --watch 0
 xy server SERVER_ID --delete
-xy server SERVER_ID --delete --confirm
 ```
 
 An empty `--groups` value restores automatic hostname-based grouping. Snapshot and watch commands require a connected Server. A watch takes one snapshot per minute for the requested number of seconds, and `--watch 0` removes it.
@@ -581,7 +573,7 @@ xy group get GROUP_ID_OR_TITLE
 xy group list
 xy group create --title "Production DBs" --hostname_match "db\\d+\\.prod\\."
 xy group update GROUP_ID --icon baguette
-xy group delete GROUP_ID --confirm
+xy group delete GROUP_ID
 xy group history GROUP_ID YYYY/MM/DD
 ```
 
@@ -691,9 +683,8 @@ Permanently delete a Server Group by exact ID. The command shows the selected Gr
 
 ```sh
 xy group delete GROUP_ID
-xy group delete GROUP_ID --confirm
-xy group delete --id GROUP_ID --confirm
-xy group delete GROUP_ID --confirm --dry
+xy group delete --id GROUP_ID
+xy group delete GROUP_ID --dry
 ```
 
 Deleting a Group changes Server membership and may affect Event targets, Monitor scopes, Alert definitions, and other saved configuration. Review those references before confirming.
@@ -758,7 +749,7 @@ xy alert get ID_OR_TITLE
 xy alert create --title "My Alert" --expression "cpu.currentLoad > 80" --message "CPU is high"
 xy alert update DEFINITION_ID --enabled false
 xy alert test DEFINITION_ID --server SERVER_ID_OR_TITLE
-xy alert delete ALERT_ID --confirm
+xy alert delete ALERT_ID
 ```
 
 Get and delete can refer to either resource type. Use an exact Alert ID for an invocation, or an exact definition ID or fuzzy definition title for a definition.
@@ -829,9 +820,9 @@ The final two forms provide temporary overrides and do not update the stored def
 Permanently delete an alert definition or one alert invocation by exact internal ID. Explicit confirmation is always required.
 
 ```sh
-xy alert delete DEFINITION_ID --confirm
-xy alert delete INVOCATION_ID --confirm
-xy alert delete ALERT_ID --confirm --dry
+xy alert delete DEFINITION_ID
+xy alert delete INVOCATION_ID
+xy alert delete ALERT_ID --dry
 ```
 
 Deleting an invocation removes only that historical record. Deleting a definition also removes its current state and invocation history.
@@ -863,9 +854,9 @@ xy bucket update BUCKET_ID --title "Release Artifacts"
 xy bucket write BUCKET_ID --data @data.json
 xy bucket upload BUCKET_ID --file report.csv
 xy bucket file download BUCKET_ID report.csv
-xy bucket file delete BUCKET_ID report.csv --confirm
-xy bucket empty BUCKET_ID --data --files --confirm
-xy bucket delete BUCKET_ID --confirm
+xy bucket file delete BUCKET_ID report.csv
+xy bucket empty BUCKET_ID --data --files
+xy bucket delete BUCKET_ID
 ```
 
 Bucket metadata, JSON data, and files have separate commands. Use `bucket update` for metadata, `bucket write` for JSON data, and the file commands for attachments.
@@ -947,8 +938,8 @@ Download or permanently delete one file. Supply either the exact normalized file
 ```sh
 xy bucket file download BUCKET_ID report.csv
 xy bucket file download BUCKET_ID FILE_ID ./downloads/report.csv
-xy bucket file delete BUCKET_ID report.csv --confirm
-xy bucket file delete BUCKET_ID FILE_ID --confirm
+xy bucket file delete BUCKET_ID report.csv
+xy bucket file delete BUCKET_ID FILE_ID
 ```
 
 ## bucket file download
@@ -970,9 +961,9 @@ The command refuses to overwrite an existing local file.
 Permanently delete one bucket file. Explicit confirmation is required.
 
 ```sh
-xy bucket file delete BUCKET_ID report.csv --confirm
-xy bucket file delete BUCKET_ID FILE_ID --confirm
-xy bucket file delete BUCKET_ID report.csv --confirm --dry
+xy bucket file delete BUCKET_ID report.csv
+xy bucket file delete BUCKET_ID FILE_ID
+xy bucket file delete BUCKET_ID report.csv --dry
 ```
 
 ## bucket empty
@@ -980,11 +971,11 @@ xy bucket file delete BUCKET_ID report.csv --confirm --dry
 Permanently clear all data, all files, or both while keeping the bucket definition. Explicit confirmation is required.
 
 ```sh
-xy bucket empty BUCKET_ID --data --confirm
-xy bucket empty BUCKET_ID --files --confirm
-xy bucket empty BUCKET_ID --data --files --confirm
-xy bucket empty BUCKET_ID --all --confirm
-xy bucket empty BUCKET_ID --all --confirm --dry
+xy bucket empty BUCKET_ID --data
+xy bucket empty BUCKET_ID --files
+xy bucket empty BUCKET_ID --data --files
+xy bucket empty BUCKET_ID --all
+xy bucket empty BUCKET_ID --all --dry
 ```
 
 ## bucket delete
@@ -992,8 +983,8 @@ xy bucket empty BUCKET_ID --all --confirm --dry
 Permanently delete a bucket definition together with all of its data and files. The exact internal Bucket ID and explicit confirmation are required.
 
 ```sh
-xy bucket delete BUCKET_ID --confirm
-xy bucket delete BUCKET_ID --confirm --dry
+xy bucket delete BUCKET_ID
+xy bucket delete BUCKET_ID --dry
 ```
 
 Bucket deletion cannot be undone.
@@ -1023,7 +1014,7 @@ xy key KEY_ID_OR_TITLE
 xy key get KEY_ID_OR_TITLE
 xy key create --title "My App" --privileges.admin
 xy key update KEY_ID --active false
-xy key delete KEY_ID --confirm
+xy key delete KEY_ID
 ```
 
 Updates and deletes require the exact internal Key ID. The authentication secret itself can never be updated or retrieved.
@@ -1087,8 +1078,8 @@ Pass a complete privilege object or roles array when you want to replace the cur
 Permanently delete an API Key using its exact internal ID. Explicit confirmation is required.
 
 ```sh
-xy key delete KEY_ID --confirm
-xy key delete KEY_ID --confirm --dry
+xy key delete KEY_ID
+xy key delete KEY_ID --dry
 ```
 
 Deletion cannot be undone. Any service using the deleted key immediately loses access.
@@ -1121,8 +1112,8 @@ xy secret get SECRET_VAULT_ID_OR_TITLE
 xy secret list
 xy secret create --title "My Vault" --fields @secrets.json
 xy secret update SECRET_VAULT_ID --notes "Updated notes"
-xy secret decrypt SECRET_VAULT_ID --confirm
-xy secret delete SECRET_VAULT_ID --confirm
+xy secret decrypt SECRET_VAULT_ID
+xy secret delete SECRET_VAULT_ID
 ```
 
 Creating, updating, decrypting, and deleting Secret Vaults requires an administrator API Key.
@@ -1199,9 +1190,9 @@ Complete assignment lists replace the saved lists. Singular assignment aliases a
 Decrypt every variable in a Secret Vault by exact ID. Explicit confirmation is required because xyOps records this access in its activity log.
 
 ```sh
-xy secret decrypt SECRET_VAULT_ID --confirm
-xy secret decrypt SECRET_VAULT_ID --confirm --format json
-xy secret decrypt SECRET_VAULT_ID --confirm --dry
+xy secret decrypt SECRET_VAULT_ID
+xy secret decrypt SECRET_VAULT_ID --format json
+xy secret decrypt SECRET_VAULT_ID --dry
 ```
 
 Human-readable output gives each variable its own titled section and prints the value exactly, without a table or surrounding box. This preserves multiline values for selection and copying. JSON output is an array of plaintext `{ "name", "value" }` objects. Treat both forms as sensitive and avoid redirecting them to an insecure destination.
@@ -1213,9 +1204,9 @@ Without `--confirm`, the command displays the target vault and a warning without
 Permanently delete a Secret Vault by exact ID. Explicit confirmation is required.
 
 ```sh
-xy secret delete SECRET_VAULT_ID --confirm
-xy secret delete --id SECRET_VAULT_ID --confirm
-xy secret delete SECRET_VAULT_ID --confirm --dry
+xy secret delete SECRET_VAULT_ID
+xy secret delete --id SECRET_VAULT_ID
+xy secret delete SECRET_VAULT_ID --dry
 ```
 
 Deletion cannot be undone. Review Events, Categories, Plugins, and Web Hooks that may rely on the vault before deleting it. `--dry` previews the deletion without making changes.
@@ -1245,7 +1236,7 @@ xy tag get TAG_ID_OR_TITLE
 xy tag list
 xy tag create --title "Production" --icon server
 xy tag update TAG_ID --notes "Production workloads"
-xy tag delete TAG_ID --confirm
+xy tag delete TAG_ID
 ```
 
 The configured API Key needs `create_tags`, `edit_tags`, or `delete_tags` for the corresponding mutation. Listing and viewing Tags only require a valid API Key.
@@ -1310,9 +1301,9 @@ Editable fields are `title`, `icon`, and `notes`. The Tag ID cannot be changed. 
 Permanently delete a Tag by exact ID. Explicit confirmation is required.
 
 ```sh
-xy tag delete TAG_ID --confirm
-xy tag delete --id TAG_ID --confirm
-xy tag delete TAG_ID --confirm --dry
+xy tag delete TAG_ID
+xy tag delete --id TAG_ID
+xy tag delete TAG_ID --dry
 ```
 
 Deletion cannot be undone. Existing Events, historical Jobs, Tickets, Actions, and Limits may still refer to the deleted Tag. `--dry` previews the deletion without making changes.
@@ -1351,7 +1342,7 @@ xy ticket update 12345 close
 xy ticket 12345 --comment "Investigation started."
 xy ticket upload 12345 --file report.txt
 xy ticket download 12345 FILE_ID
-xy ticket delete 12345 --confirm
+xy ticket delete 12345
 ```
 
 Ticket numbers and internal IDs are accepted by all Ticket commands.
@@ -1476,9 +1467,9 @@ The output path defaults to the attachment's original filename in the current di
 Permanently delete a Ticket using its number or internal ID. Explicit confirmation is required.
 
 ```sh
-xy ticket delete 12345 --confirm
-xy ticket delete --id tabc123 --confirm
-xy ticket delete 12345 --confirm --dry
+xy ticket delete 12345
+xy ticket delete --id tabc123
+xy ticket delete 12345 --dry
 ```
 
 Deletion cannot be undone. `--dry` previews the deletion without making changes.
@@ -1510,7 +1501,7 @@ xy hook list
 xy hook create --title "My Hook" --url https://example.com/hook
 xy hook update HOOK_ID --enabled false
 xy hook test HOOK_ID
-xy hook delete HOOK_ID --confirm
+xy hook delete HOOK_ID
 ```
 
 The configured API Key needs `create_web_hooks`, `edit_web_hooks`, or `delete_web_hooks` for the corresponding mutation. Testing requires `edit_web_hooks`. Listing and viewing Hooks only require a valid API Key.
@@ -1606,9 +1597,9 @@ The report includes the result, request, response, and performance metrics. Temp
 Permanently delete a Web Hook by exact ID. Explicit confirmation is required.
 
 ```sh
-xy hook delete HOOK_ID --confirm
-xy hook delete --id HOOK_ID --confirm
-xy hook delete HOOK_ID --confirm --dry
+xy hook delete HOOK_ID
+xy hook delete --id HOOK_ID
+xy hook delete HOOK_ID --dry
 ```
 
 Deletion cannot be undone. Events, workflows, Categories, server groups, Alerts, and Secret Vaults may still refer to the deleted Web Hook. `--dry` previews the deletion without making changes.
@@ -1639,7 +1630,7 @@ xy category get CAT_ID_OR_TITLE
 xy category list
 xy category create --title "My Category" --notes "Hello"
 xy category update CAT_ID --enabled false
-xy category delete CAT_ID --confirm
+xy category delete CAT_ID
 ```
 
 ## category list
@@ -1716,9 +1707,9 @@ Disabling a Category prevents scheduling and manual launches for all its Events 
 Permanently delete a category by exact ID. Explicit confirmation is required, and xyOps refuses deletion while any events or workflows still belong to the category. Move or delete those events first.
 
 ```sh
-xy category delete CAT_ID --confirm
-xy category delete --id CAT_ID --confirm
-xy category delete CAT_ID --confirm --dry
+xy category delete CAT_ID
+xy category delete --id CAT_ID
+xy category delete CAT_ID --dry
 ```
 
 `--dry` previews the deletion without making changes.
@@ -1749,7 +1740,7 @@ xy channel get CHANNEL_ID_OR_TITLE
 xy channel list
 xy channel create --title "Operations" --users admin
 xy channel update CHANNEL_ID --enabled false
-xy channel delete CHANNEL_ID --confirm
+xy channel delete CHANNEL_ID
 ```
 
 Channels bundle email recipients, in-app notifications, an optional web hook, and an optional follow-up event. They run when referenced by an event, category, or alert action. Creating or updating a channel only changes its configuration.
@@ -1829,9 +1820,9 @@ Disabling a Channel causes actions that reference it to skip its notifications. 
 Permanently delete a channel by exact ID. Explicit confirmation is required.
 
 ```sh
-xy channel delete CHANNEL_ID --confirm
-xy channel delete --id CHANNEL_ID --confirm
-xy channel delete CHANNEL_ID --confirm --dry
+xy channel delete CHANNEL_ID
+xy channel delete --id CHANNEL_ID
+xy channel delete CHANNEL_ID --dry
 ```
 
 Deletion does not remove references from Events, workflows, Categories, server groups, or Alerts. Update those actions when replacing a Channel. `--dry` previews the deletion without making changes.
@@ -1863,7 +1854,7 @@ xy monitor list
 xy monitor create --title "CPU Usage" --source cpu.currentLoad --suffix %
 xy monitor update MONITOR_ID --display false
 xy monitor test MONITOR_ID_OR_TITLE --server SERVER_ID_OR_TITLE
-xy monitor delete MONITOR_ID --confirm
+xy monitor delete MONITOR_ID
 ```
 
 Monitors extract numeric metrics from server data using xyOps expressions. `display` controls visibility in the web interface; hiding a monitor does not stop collection or prevent alerts from using its values.
@@ -1958,9 +1949,9 @@ JSON output includes the calculated value or failure status. Testing requires th
 Permanently delete a monitor by exact ID. Explicit confirmation is required.
 
 ```sh
-xy monitor delete MONITOR_ID --confirm
-xy monitor delete --id MONITOR_ID --confirm
-xy monitor delete MONITOR_ID --confirm --dry
+xy monitor delete MONITOR_ID
+xy monitor delete --id MONITOR_ID
+xy monitor delete MONITOR_ID --dry
 ```
 
 Review any Alert expressions that refer to the Monitor before deleting it. `--dry` previews the deletion without making changes.
@@ -2029,10 +2020,8 @@ Preview and install one Marketplace Plugin by its exact `AUTHOR/REPO` ID. The pr
 ```sh
 xy marketplace install pixlcore/xyplug-ai
 xy marketplace install pixlcore/xyplug-ai --version v1.0.9
-xy marketplace install pixlcore/xyplug-ai --confirm
-xy marketplace install pixlcore/xyplug-ai --version v1.0.9 --confirm
-xy marketplace install pixlcore/xyplug-ai --confirm --dry
-xy marketplace install pixlcore/xyplug-ai --confirm --format json
+xy marketplace install pixlcore/xyplug-ai --dry
+xy marketplace install pixlcore/xyplug-ai --format json
 ```
 
 The preview verifies that the package is compatible and explains whether it will install a new Plugin or upgrade an existing one. It also warns if the matching Plugin ID belongs to a local Plugin from another source. Use `--format json` for a structured preview.
@@ -2065,7 +2054,7 @@ xy plugin get PLUGIN_ID_OR_TITLE
 xy plugin list
 xy plugin create --title "My Plugin" --type event --command node --script @plugin.js
 xy plugin update PLUGIN_ID --enabled false
-xy plugin delete PLUGIN_ID --confirm
+xy plugin delete PLUGIN_ID
 ```
 
 xyOps supports four kinds of Plugin. Event Plugins run jobs, Monitor Plugins gather server metrics, Action Plugins respond to job or alert conditions, and Scheduler Plugins provide custom scheduling decisions.
@@ -2151,9 +2140,9 @@ For Monitor Plugins, `--groups` replaces the complete server-group list, dotted 
 Permanently delete a Plugin by exact ID. Explicit confirmation is required.
 
 ```sh
-xy plugin delete PLUGIN_ID --confirm
-xy plugin delete --id PLUGIN_ID --confirm
-xy plugin delete PLUGIN_ID --confirm --dry
+xy plugin delete PLUGIN_ID
+xy plugin delete --id PLUGIN_ID
+xy plugin delete PLUGIN_ID --dry
 ```
 
 Before deleting a Plugin, review Events, workflows, Monitors, triggers, and Actions that may reference it. Deletion does not remove those references. `--dry` previews the deletion without making changes.
@@ -2182,7 +2171,7 @@ xy event ID_OR_TITLE
 xy event get ID_OR_TITLE
 xy event create --title "My Event" --plugin testplug
 xy event update EVENT_ID --enabled false
-xy event delete EVENT_ID --confirm
+xy event delete EVENT_ID
 xy event run ID_OR_TITLE
 ```
 
@@ -2237,9 +2226,9 @@ Dotted options preserve other settings, and numerical array indexes must already
 Permanently delete an event using its exact ID. The command requires explicit confirmation and can optionally remove the event's historical jobs in the background.
 
 ```sh
-xy event delete EVENT_ID --confirm
-xy event delete EVENT_ID --delete_jobs --confirm
-xy event delete EVENT_ID --confirm --dry
+xy event delete EVENT_ID
+xy event delete EVENT_ID --delete_jobs
+xy event delete EVENT_ID --dry
 ```
 
 Deletion is blocked while the Event has active Jobs. Use `--dry` to preview the deletion without making changes.
@@ -2324,7 +2313,7 @@ xy job log JOB_ID
 xy job run JOB_ID --follow
 xy job resume JOB_ID
 xy job abort JOB_ID
-xy job delete JOB_ID --confirm
+xy job delete JOB_ID
 ```
 
 ## job get
@@ -2392,8 +2381,8 @@ xy job abort JOB_ID --dry
 Permanently delete a completed job, including its stored output and attached files. Active jobs must be aborted and allowed to finish before they can be deleted.
 
 ```sh
-xy job delete JOB_ID --confirm
-xy job delete JOB_ID --confirm --dry
+xy job delete JOB_ID
+xy job delete JOB_ID --dry
 ```
 
 ## log
