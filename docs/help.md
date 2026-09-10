@@ -12,6 +12,7 @@ xy alerts
 xy buckets
 xy categories
 xy channels
+xy doc
 xy log xyOps --rows 100
 xy monitors
 xy plugins
@@ -35,6 +36,7 @@ xy help system export
 xy help system diagnostic
 xy help system restart
 xy help system shutdown
+xy help doc
 xy help event
 xy help event create
 xy help jobs
@@ -218,6 +220,19 @@ xy config --base_url http://localhost:5522 --api_key YOUR_API_KEY
 ```
 
 Configuration may also come from `/etc/xyops/cli.json` and `XYOPS_`-prefixed environment variables. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
+
+## doc
+
+Fetch and display xyOps documentation in the terminal. Run the command without a document name to browse the documentation index. Specify a document to read it in full, or add a chapter slug to focus on one section and all of its sub-sections.
+
+```sh
+xy doc
+xy doc plugins
+xy doc plugins/output-data
+xy doc plugins output-data
+```
+
+Chapter slugs are lowercase heading names with punctuation and spaces replaced by hyphens. The slash and space forms are equivalent. Internal documentation links are displayed as copyable `xy doc` commands.
 
 ## dashboard
 
