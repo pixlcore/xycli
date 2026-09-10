@@ -202,8 +202,11 @@ test('servers', async t => {
 	if (process) {
 		await check('process detail is a focused page with its family tree', () => {
 			const out = xy(['server', active[0].id, '--pid', String(process.pid)]);
+			const serverName = active[0].title || active[0].hostname;
+			const escapedServerName = serverName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 			assert.match(out, /PROCESS DETAILS/);
 			assert.match(out, /PROCESS FAMILY/);
+			assert.match(out, new RegExp('Server:\\s+' + escapedServerName));
 			assert.match(out, new RegExp('Process ID:\\s+' + process.pid));
 			assert.match(out, /Command:/);
 			assert.doesNotMatch(out, /SERVER SUMMARY/);
