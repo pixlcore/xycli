@@ -16,6 +16,7 @@ xy log xyOps --rows 100
 xy monitors
 xy plugins
 xy servers
+xy groups
 xy secrets
 xy tags
 xy tickets
@@ -65,6 +66,10 @@ xy help servers
 xy help server
 xy help server add
 xy help server search
+xy help groups
+xy help group
+xy help group history
+xy help group create
 xy help secrets
 xy help secret
 xy help secret create
@@ -535,6 +540,148 @@ xy server SERVER_ID --delete --confirm
 An empty `--groups` value restores automatic hostname-based grouping. Snapshot and watch commands require a connected Server. A watch takes one snapshot per minute for the requested number of seconds, and `--watch 0` removes it.
 
 Server deletion always removes the Server record, all monitoring history, and all snapshots. If the Server is connected, xySat is also uninstalled. The command shows a detailed preview first and does nothing until you add `--confirm`.
+
+## groups
+
+List Server Groups in their saved order. The table includes each Group's ID, title, connected Server count, hostname pattern, Alert Action count, author, and modification time. Search text matches IDs, titles, hostname patterns, and notes. Named filters may also be combined.
+
+```sh
+xy groups
+xy groups SEARCH_TEXT
+xy groups --title Production
+xy groups --hostname_match "^db"
+xy groups --limit 10 --page 2
+xy groups --format json
+```
+
+The Server count includes currently connected Servers. Recently offline Servers may appear in a Group's detail view, but are not included in this count.
+
+## group
+
+View, create, update, or delete a Server Group. A bare ID or fuzzy title opens the combined live monitoring view. Updates and deletes require an exact Group ID.
+
+```sh
+xy group GROUP_ID_OR_TITLE
+xy group get GROUP_ID_OR_TITLE
+xy group list
+xy group create --title "Production DBs" --hostname_match "db\\d+\\.prod\\."
+xy group update GROUP_ID --icon baguette
+xy group delete GROUP_ID --confirm
+xy group history GROUP_ID YYYY/MM/DD
+```
+
+## group list
+
+List and filter Server Groups. This is an alias for `xy groups`, with the same options.
+
+```sh
+xy group list
+xy group list SEARCH_TEXT
+xy group list --limit 10 --page 2
+```
+
+## group get
+
+Show the combined live or recently offline state for all selected Servers in a Group. The view includes the Group summary, Server table, active Alerts and Jobs, Quick Look charts, memory and CPU details, Containers, and optional Monitor, Process, and connection sections.
+
+```sh
+xy group GROUP_ID
+xy group GROUP_ID --verbose
+xy group GROUP_ID --monitors
+xy group GROUP_ID --processes
+xy group GROUP_ID --connections
+xy group GROUP_ID --merge total
+xy group GROUP_ID --merge max
+xy group GROUP_ID --limit 20 --page 2
+```
+
+Chart and detail values default to `--merge average`. The accepted modes are `average` (or `avg`), `maximum` (or `max`), `minimum` (or `min`), and `total`. The selected merge mode is included in each chart title.
+
+Use `--verbose` to show Monitors, Processes, and network connections together, or enable those sections individually. Containers are always shown when available. Process and Container actions are intentionally read-only in the Group view.
+
+You can limit the live view to matching Servers:
+
+```sh
+xy group GROUP_ID SEARCH_TEXT
+xy group GROUP_ID --os linux
+xy group GROUP_ID --ip 192.168.
+xy group GROUP_ID --arch arm64
+xy group GROUP_ID --online true
+```
+
+Search text checks Server IDs, labels, hostnames, IP addresses, operating system details, CPU details, xySat versions, and Group names. Named filters use the same case-insensitive partial matching as `xy servers`.
+
+Add `--upcoming` to show only the Group summary and predicted upcoming Jobs:
+
+```sh
+xy group GROUP_ID --upcoming
+xy group GROUP_ID --upcoming --limit 20 --page 2
+```
+
+## group history
+
+View merged historical Monitor charts, Alerts, and completed Jobs for a Server Group. The view includes Servers that belonged to the Group during the selected period.
+
+```sh
+xy group history GROUP_ID 2026/09/09/14
+xy group history GROUP_ID 2026/09/09
+xy group history GROUP_ID 2026/09
+xy group history GROUP_ID 2026
+xy group history GROUP_ID 2026/09/09 --merge maximum
+xy group history GROUP_ID 2026/09/09 --limit 20 --page 2
+```
+
+The number of date components selects exactly one hour, day, month, or year. Dates and times use the xyOps Server's local time zone. Server filters such as `--os` and `--ip` apply only to live Group views.
+
+The `--merge` modes are the same as the live view, and historical Monitor charts are always shown. Pagination applies to the Server, Alert, and completed Job tables.
+
+## group create
+
+Create a Server Group with a required title. The hostname pattern defaults to a regular expression that matches no Servers when omitted. xyOps generates an ID unless you provide one.
+
+```sh
+xy group create --title "Production DBs" --hostname_match "db\\d+\\.prod\\."
+xy group create --id production --title "Production" --hostname_match ".+"
+xy group create --title "Manual Group" --icon server-network
+xy group create --title "Limited Workers" --max_jobs_per_server 4
+xy group create --title "Notifications" --action '{ "type":"web_hook", "enabled":true, "condition":"alert_new", "web_hook":"example_hook" }'
+xy group create --json @group.json
+xy group create --title "Preview" --dry
+```
+
+Supported fields are `id`, `title`, `hostname_match`, `icon`, `notes`, `max_jobs_per_server`, and `alert_actions`. The singular `--action` option appends one Alert Action and may be repeated. Use `--alert_actions` to provide a complete JSON array.
+
+`max_jobs_per_server` sets the default concurrent Job limit for each Server in the Group. Zero means unlimited. Individual Server settings may override it.
+
+## group update
+
+Update a Server Group by exact ID. Omitted fields remain unchanged. Use `--alert_actions` to replace the complete Alert Action list, dotted options to edit existing Actions, or `--action` to append a new one.
+
+```sh
+xy group update GROUP_ID --title "New Title" --notes "Updated notes"
+xy group update GROUP_ID --hostname_match "^prod-db-"
+xy group update GROUP_ID --icon baguette --max_jobs_per_server 8
+xy group update GROUP_ID --alert_actions.0.enabled false
+xy group update GROUP_ID --action @action.json
+xy group update GROUP_ID --alert_actions '[]'
+xy group update GROUP_ID --json @group-update.json
+xy group update GROUP_ID --notes "Preview" --dry
+```
+
+An empty `hostname_match` matches no Servers. Invalid regular expressions are rejected without changing the Group. The Group ID cannot be changed.
+
+## group delete
+
+Permanently delete a Server Group by exact ID. The command shows the selected Group and does nothing until you add `--confirm`.
+
+```sh
+xy group delete GROUP_ID
+xy group delete GROUP_ID --confirm
+xy group delete --id GROUP_ID --confirm
+xy group delete GROUP_ID --confirm --dry
+```
+
+Deleting a Group changes Server membership and may affect Event targets, Monitor scopes, Alert definitions, and other saved configuration. Review those references before confirming.
 
 ## upcoming
 
