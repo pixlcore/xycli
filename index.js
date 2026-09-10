@@ -48,6 +48,18 @@ const chalk = cli.chalk;
 // happen to look like JSON or come from a file with a .json extension.
 const JSON_ARG_EXCEPTIONS = ['body'];
 
+// Keep the public command inventory in one place, so typo suggestions and the
+// fallback help text always advertise the exact same top-level commands.
+const TOP_LEVEL_COMMANDS = [
+	'help', 'config', 'dashboard', 'system', 'upcoming',
+	'alerts', 'alert', 'buckets', 'bucket', 'categories', 'category',
+	'channels', 'channel', 'events', 'event', 'run', 'groups', 'group',
+	'jobs', 'job', 'keys', 'key', 'log', 'monitors', 'monitor',
+	'plugins', 'plugin', 'servers', 'server', 'secrets', 'secret',
+	'tags', 'tag', 'tickets', 'ticket', 'hooks', 'hook', 'marketplace',
+	'import', 'api', 'repl'
+];
+
 // coerce true/false into booleans
 for (var key in cli.args) {
 	if (cli.args[key] === 'true') cli.args[key] = true;
@@ -260,7 +272,13 @@ const app = {
 				args.other[0] = cmd;
 				cmd = new_cmd;
 			}
-			else this.die("Unknown command: " + cmd, "Available Commands: help, config, dashboard, system, upcoming, alerts, alert, buckets, bucket, categories, category, channels, channel, events, event, run, groups, group, jobs, job, keys, key, log, monitors, monitor, plugins, plugin, servers, server, secrets, secret, tags, tag, tickets, ticket, hooks, hook, marketplace, import, api, repl\n\n");
+			else {
+				var suggestion = this.findClosestString(cmd, TOP_LEVEL_COMMANDS);
+				this.die(
+					"Unknown command: " + cmd + (suggestion ? '. Did you mean "' + suggestion + '"?' : ''),
+					"Available Commands: " + TOP_LEVEL_COMMANDS.join(', ') + "\n\n"
+				);
+			}
 		}
 		
 		// merge in config from xyops
