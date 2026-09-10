@@ -17,6 +17,7 @@ xy log xyOps --rows 100
 xy monitors
 xy plugins
 xy servers
+xy snapshots
 xy groups
 xy secrets
 xy tags
@@ -68,6 +69,8 @@ xy help servers
 xy help server
 xy help server add
 xy help server search
+xy help snapshots
+xy help snapshot
 xy help groups
 xy help group
 xy help group history
@@ -413,6 +416,40 @@ xy system broadcast "Test message" --dry
 ```
 
 Available notification types are `info`, `warning`, `error`, and `critical`. Use `--sound FILENAME` to play a sound that is already available in xyOps.
+
+## snapshots
+
+List saved Server and Group snapshots, newest first. Use the optional indexed filters to narrow the history by source, exact Server ID, or exact Group ID.
+
+```sh
+xy snapshots
+xy snapshots --source user
+xy snapshots --server SERVER_ID
+xy snapshots --group GROUP_ID
+xy snapshots --limit 20 --page 2
+xy snapshots --format json
+```
+
+Snapshot sources are `alert`, `user`, `watch`, and `job`. Filters may be combined. Free-form keyword search and custom date ranges are not supported by this command.
+
+## snapshot
+
+View one saved Server or Group snapshot by its exact ID. The CLI detects the snapshot type and displays the matching point-in-time view automatically.
+
+```sh
+xy snapshot SNAPSHOT_ID
+xy snapshot SNAPSHOT_ID --monitors
+xy snapshot SNAPSHOT_ID --processes
+xy snapshot SNAPSHOT_ID --connections
+xy snapshot SNAPSHOT_ID --verbose
+xy snapshot SNAPSHOT_ID --delete
+```
+
+The default view includes the captured summary, Alerts, Jobs, Quick Look charts, memory and CPU details, monitor summary, Containers, network interfaces, and filesystems when available. Group snapshots also include the captured Server table.
+
+Add `--monitors` to fetch and chart the 60 one-minute historical samples ending at the snapshot. The snapshot minute is the final sample on the right side of each chart. Add `--processes` or `--connections` for the larger captured tables, or use `--verbose` to include all optional sections.
+
+Deletion first displays the selected snapshot and makes no change until you add `--confirm`. Snapshot deletion cannot be undone.
 
 ## servers
 

@@ -59,7 +59,8 @@ const TOP_LEVEL_COMMANDS = [
 	'channels', 'channel', 'events', 'event', 'run', 'groups', 'group',
 	'jobs', 'job', 'keys', 'key', 'log', 'monitors', 'monitor',
 	'plugins', 'plugin', 'servers', 'server', 'secrets', 'secret',
-	'tags', 'tag', 'tickets', 'ticket', 'hooks', 'hook', 'marketplace',
+	'snapshots', 'snapshot', 'tags', 'tag', 'tickets', 'ticket',
+	'hooks', 'hook', 'marketplace',
 	'import', 'api', 'repl'
 ];
 
@@ -422,6 +423,7 @@ Tools.mergeHashInto( app, require('./lib/monitors.js') );
 Tools.mergeHashInto( app, require('./lib/plugins.js') );
 Tools.mergeHashInto( app, require('./lib/servers.js') );
 Tools.mergeHashInto( app, require('./lib/groups.js') );
+Tools.mergeHashInto( app, require('./lib/snapshots.js') );
 Tools.mergeHashInto( app, require('./lib/secrets.js') );
 Tools.mergeHashInto( app, require('./lib/tags.js') );
 Tools.mergeHashInto( app, require('./lib/tickets.js') );
