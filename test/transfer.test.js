@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const Path = require('node:path');
 const zlib = require('node:zlib');
+const utils = require('../lib/utils.js');
 const transfer = require('../lib/transfer.js');
 const { loadTestConfig, createCheck, createTempDir, xy, json, call, cleanupFixtures } = require('./helpers/common.js');
 
@@ -50,7 +51,7 @@ test('transfer', async t => {
 		
 		// Unit graph deliberately has a cycle, shared dependencies and physical
 		// server targets. Do not install the cyclic workflow on the live server.
-		const ctx = { ...transfer, die: message => { throw new Error(message); } };
+		const ctx = { ...utils, ...transfer, die: message => { throw new Error(message); } };
 		for (const [type, meta] of Object.entries(types)) ctx[meta[1]] = [];
 		const a = { id: 'a', title: 'A', category: 'general', targets: ['server_id'], workflow: { nodes: [{ type: 'event', data: { event: 'b' } }] } };
 		const b = { id: 'b', title: 'B', workflow: { nodes: [{ type: 'event', data: { event: 'a' } }, { type: 'job', data: { plugin: 'custom' } }] }, actions: [{ type: 'plugin', plugin_id: 'custom' }] };
@@ -83,9 +84,9 @@ test('transfer', async t => {
 		});
 		
 		await check('semver release and prerelease ordering', () => {
-			assert.equal(ctx.compareTransferVersions('1.2.3', '1.2.3+build'), 0);
-			assert.equal(ctx.compareTransferVersions('1.2.3-beta.2', '1.2.3-beta.10'), -1);
-			assert.equal(ctx.compareTransferVersions('1.2.3', '1.2.3-beta'), 1);
+			assert.equal(ctx.compareVersions('1.2.3', '1.2.3+build'), 0);
+			assert.equal(ctx.compareVersions('1.2.3-beta.2', '1.2.3-beta.10'), -1);
+			assert.equal(ctx.compareVersions('1.2.3', '1.2.3-beta'), 1);
 		});
 		
 		await check('shared new dependencies precede every consumer', () => {

@@ -44,6 +44,9 @@ var highlight = require('cli-highlight').highlight;
 const Tools = cli.Tools;
 const chalk = cli.chalk;
 
+// minimum xyops version
+const XYOPS_MIN_VERSION = '1.0.96';
+
 // These API parameters are always opaque strings, even when their contents
 // happen to look like JSON or come from a file with a .json extension.
 const JSON_ARG_EXCEPTIONS = ['body'];
@@ -283,6 +286,11 @@ const app = {
 		
 		// merge in config from xyops
 		await this.cacheConfig();
+		
+		// make sure we have a compatible version of xyops
+		if (this.compareVersions(XYOPS_MIN_VERSION, this.xyopsVersion) > 0) {
+			this.die("The CLI requires xyOps v" + XYOPS_MIN_VERSION + " or higher.");
+		}
 		
 		// go go go
 		await this['cmd_' + cmd]();
