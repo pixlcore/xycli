@@ -57,6 +57,7 @@ The controller exits with a nonzero status if any suite fails. A failed lifecycl
 | `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
 | `servers` | Active and recently offline lists, local filters, installer generation, historical search, live and historical Server details, charts, processes, connections, pagination, validation, help |
 | `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
+| `sync` | Setup export, isolated filesystem discovery, external property files, dry-run, upsync, downsync, no-op detection, and guarded delete mode |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |

@@ -216,6 +216,10 @@ const app = {
 		
 		println( ' ' + gray(this.config.base_url) );
 		
+		if (this.dry) {
+			this.toast('⚠️', 'orange', bold("DRY RUN: ") + "No changes will actually be made.");
+		}
+		
 		// optionally read STDIN into a named arg (use curl @- convention)
 		var stdin_arg_key = null;
 		for (var key in args) {
@@ -401,7 +405,7 @@ const app = {
 			console.error(msg);
 			if (msg.message) msg = msg.message;
 		}
-		die( "\n❌ " + red.bold("ERROR: ") + yellow.bold(msg) + "\n\n" + extra );
+		die( "\n ❌ " + red.bold("ERROR: ") + yellow.bold(msg) + "\n\n" + extra );
 	}
 	
 };
@@ -430,6 +434,7 @@ Tools.mergeHashInto( app, require('./lib/tickets.js') );
 Tools.mergeHashInto( app, require('./lib/webhook.js') );
 Tools.mergeHashInto( app, require('./lib/transfer.js') );
 Tools.mergeHashInto( app, require('./lib/marketplace.js') );
+Tools.mergeHashInto( app, require('./lib/sync.js') );
 
 global.app = app;
 

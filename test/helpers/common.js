@@ -51,7 +51,10 @@ function runCLI(args, options = {}) {
 		Path.join(root, 'index.js'),
 		...args
 	], {
-		cwd: root,
+		// Most suites run from the project root. Filesystem-oriented commands can
+		// override this with a private temporary directory while still invoking the
+		// real CLI executable by its absolute path.
+		cwd: options.cwd || root,
 		encoding: 'utf8',
 		timeout: 30000,
 		maxBuffer: 16 * 1024 * 1024,
