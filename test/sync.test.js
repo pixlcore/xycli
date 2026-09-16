@@ -39,6 +39,16 @@ test('sync', async t => {
 	const downEventNotes = 'Remote Event metadata for downsync';
 	const downPluginScript = '#!/usr/bin/env node\nconsole.log("remote plugin");\n';
 	const downEventScript = '#!/bin/bash\necho "remote event"\n';
+	const governedState = {
+		['category-' + categoryID]: true,
+		['plugin-' + pluginID]: true,
+		['event-' + eventID]: true
+	};
+	const mixedState = {
+		['category-' + categoryID]: true
+	};
+	let originalSyncState = {};
+	let capturedSyncState = false;
 	
 	function slugify(title) {
 		// Match setupSync() exactly so the test locates its own generated files
@@ -64,22 +74,28 @@ test('sync', async t => {
 	}
 	
 	async function getFixtures() {
-		const data = await call('getMultiple', { lists: 'categories,plugins,events' });
+		const data = await call('getMultiple', { lists: 'categories,plugins,events', state: 1 });
 		return {
 			category: data.categories.find(item => item.id === categoryID),
 			deleteCategory: data.categories.find(item => item.id === deleteCategoryID),
 			plugin: data.plugins.find(item => item.id === pluginID),
-			event: data.events.find(item => item.id === eventID)
+			event: data.events.find(item => item.id === eventID),
+			syncState: (data.state && data.state.sync) || {}
 		};
 	}
 	
 	try {
 		let group;
 		
-		await check('local server has a target group', async () => {
-			const data = await call('getMultiple', { lists: 'groups' });
+		await check('local server has a target group and preserves existing sync state', async () => {
+			const data = await call('getMultiple', { lists: 'groups', state: 1 });
 			group = data.groups[0];
 			assert.ok(group, 'At least one server group is required');
+			
+			// The sync map is a single authoritative global object. Preserve any map
+			// already present on the developer's server and restore it in finally.
+			originalSyncState = JSON.parse(JSON.stringify((data.state && data.state.sync) || {}));
+			capturedSyncState = true;
 		});
 		
 		await check('create disposable sync definitions', async () => {
@@ -174,7 +190,7 @@ test('sync', async t => {
 			assert.equal(event.items[0].data.params.script, '(External)');
 			
 			for (const payload of [category, plugin, event]) {
-				for (const key of ['created', 'modified', 'revision', 'sort_order', 'username', 'sync']) {
+				for (const key of ['created', 'modified', 'revision', 'sort_order', 'username']) {
 					assert.ok(!(key in payload.items[0].data), 'Export omits ' + key);
 				}
 			}
@@ -221,12 +237,16 @@ test('sync', async t => {
 			assert.match(output, /API REQUEST PREVIEW: update_category/);
 			assert.match(output, /API REQUEST PREVIEW: update_plugin/);
 			assert.match(output, /API REQUEST PREVIEW: update_event/);
+			assert.match(output, /API REQUEST PREVIEW: update_global_state/);
 			assert.equal(fixtures.category.notes, originalCategoryNotes);
 			assert.equal(fixtures.plugin.notes, originalPluginNotes);
 			assert.equal(fixtures.plugin.script, originalPluginScript);
 			assert.equal(fixtures.event.notes, originalEventNotes);
 			assert.equal(fixtures.event.params.script, originalEventScript);
-			assert.ok(!fixtures.category.sync && !fixtures.plugin.sync && !fixtures.event.sync);
+			assert.deepEqual(fixtures.syncState, originalSyncState);
+			for (const item of [fixtures.category, fixtures.plugin, fixtures.event]) {
+				assert.ok(!Object.prototype.hasOwnProperty.call(item, 'sync'), 'Dry upsync leaves resources free of sync metadata');
+			}
 		});
 		
 		await check('upsync applies XYPDF and external property changes', async () => {
@@ -243,22 +263,25 @@ test('sync', async t => {
 			assert.equal(fixtures.plugin.script, updatedPluginScript);
 			assert.equal(fixtures.event.notes, updatedEventNotes);
 			assert.equal(fixtures.event.params.script, updatedEventScript);
-			assert.equal(fixtures.category.sync, true);
-			assert.equal(fixtures.plugin.sync, true);
-			assert.equal(fixtures.event.sync, true);
+			assert.deepEqual(fixtures.syncState, governedState);
+			for (const item of [fixtures.category, fixtures.plugin, fixtures.event]) {
+				assert.ok(!Object.prototype.hasOwnProperty.call(item, 'sync'), 'Upsync leaves resources free of sync metadata');
+			}
 		});
 		
 		await check('unchanged upsync is a no-op', async () => {
 			const before = await getFixtures();
 			const output = xy([
-				'sync', syncRoot, '--up', 'categories,plugins,events'
+				'sync', syncRoot, '--up', 'categories,plugins,events', '--verbose'
 			], { cwd: temp });
 			const after = await getFixtures();
 			
 			assert.doesNotMatch(output, /Updating (category|plugin|event)/);
+			assert.doesNotMatch(output, /API REQUEST: update_global_state/);
 			assert.equal(after.category.revision, before.category.revision);
 			assert.equal(after.plugin.revision, before.plugin.revision);
 			assert.equal(after.event.revision, before.event.revision);
+			assert.deepEqual(after.syncState, governedState);
 		});
 		
 		await check('change xyOps resources for downsync', async () => {
@@ -272,27 +295,32 @@ test('sync', async t => {
 			assert.equal(fixtures.plugin.script, downPluginScript);
 			assert.equal(fixtures.event.notes, downEventNotes);
 			assert.equal(fixtures.event.params.script, downEventScript);
+			assert.deepEqual(fixtures.syncState, governedState);
 		});
 		
-		await check('dry downsync previews writes without changing local files', () => {
+		await check('dry downsync previews writes without changing files or state', async () => {
 			const before = [categoryFile, pluginFile, pluginScriptFile, eventFile, eventScriptFile].map(file => fs.readFileSync(file, 'utf8'));
 			const output = xy([
 				'sync', syncRoot, '--down', 'categories,plugins,events', '--dry'
 			], { cwd: temp });
 			const after = [categoryFile, pluginFile, pluginScriptFile, eventFile, eventScriptFile].map(file => fs.readFileSync(file, 'utf8'));
+			const fixtures = await getFixtures();
 			
 			assert.match(output, /DRY RUN/);
 			assert.equal((output.match(/WRITING FILE:/g) || []).length, 3);
+			assert.match(output, /API REQUEST PREVIEW: update_global_state/);
 			assert.deepEqual(after, before);
+			assert.deepEqual(fixtures.syncState, governedState);
 		});
 		
-		await check('downsync writes XYPDF metadata and external source files', () => {
+		await check('downsync writes files and clears global sync governance', async () => {
 			const output = xy([
 				'sync', syncRoot, '--down', 'categories,plugins,events'
 			], { cwd: temp });
 			const category = readXYPDF(categoryFile);
 			const plugin = readXYPDF(pluginFile);
 			const event = readXYPDF(eventFile);
+			const fixtures = await getFixtures();
 			
 			assert.match(output, /Updating category/);
 			assert.match(output, /Updating plugin/);
@@ -304,6 +332,37 @@ test('sync', async t => {
 			assert.equal(event.items[0].data.params.script, '(External)');
 			assert.equal(fs.readFileSync(pluginScriptFile, 'utf8'), downPluginScript);
 			assert.equal(fs.readFileSync(eventScriptFile, 'utf8'), downEventScript);
+			assert.deepEqual(fixtures.syncState, {});
+			for (const item of [fixtures.category, fixtures.plugin, fixtures.event]) {
+				assert.ok(!Object.prototype.hasOwnProperty.call(item, 'sync'), 'Downsync leaves resources free of sync metadata');
+			}
+		});
+		
+		await check('unchanged downsync and state are a no-op', async () => {
+			const files = [categoryFile, pluginFile, pluginScriptFile, eventFile, eventScriptFile];
+			const before = files.map(file => fs.readFileSync(file, 'utf8'));
+			const output = xy([
+				'sync', syncRoot, '--down', 'categories,plugins,events', '--verbose'
+			], { cwd: temp });
+			const after = files.map(file => fs.readFileSync(file, 'utf8'));
+			const fixtures = await getFixtures();
+			
+			assert.doesNotMatch(output, /Updating (category|plugin|event)/);
+			assert.doesNotMatch(output, /API REQUEST: update_global_state/);
+			assert.deepEqual(after, before);
+			assert.deepEqual(fixtures.syncState, {});
+		});
+		
+		await check('mixed directions govern only up-only resource types', async () => {
+			const output = xy([
+				'sync', syncRoot,
+				'--up', 'categories,plugins',
+				'--down', 'plugins,events'
+			], { cwd: temp });
+			const fixtures = await getFixtures();
+			
+			assert.doesNotMatch(output, /Updating (category|plugin|event)/);
+			assert.deepEqual(fixtures.syncState, mixedState);
 		});
 		
 		let deleteCategoryFile;
@@ -349,6 +408,7 @@ test('sync', async t => {
 			assert.match(output, /empty, malformed or missing items array/);
 			assert.doesNotMatch(output, /Deleting category/);
 			assert.ok(fixtures.deleteCategory, 'Malformed source did not delete its Category');
+			assert.deepEqual(fixtures.syncState, mixedState, 'Malformed input leaves global sync governance untouched');
 			fs.writeFileSync(deleteCategoryFile, validSource);
 		});
 		
@@ -362,7 +422,9 @@ test('sync', async t => {
 			assert.match(output, /DRY RUN/);
 			assert.match(output, new RegExp('Deleting category.*' + deleteCategoryTitle));
 			assert.match(output, /API REQUEST PREVIEW: delete_category/);
+			assert.match(output, /API REQUEST PREVIEW: update_global_state/);
 			assert.ok(fixtures.deleteCategory, 'Dry delete preserved its Category');
+			assert.deepEqual(fixtures.syncState, mixedState, 'Dry delete preserves global sync governance');
 		});
 		
 		await check('delete mode removes only the missing disposable Category', async () => {
@@ -387,15 +449,36 @@ test('sync', async t => {
 			assert.equal(fixtures.deleteCategory, undefined);
 			assert.deepEqual(actualIDs, expectedIDs, 'No other Categories were deleted');
 			assert.ok(fixtures.category && fixtures.plugin && fixtures.event, 'Resources outside the missing fixture remain');
+			assert.deepEqual(fixtures.syncState, {}, 'Down-only delete mode clears global sync governance');
 		});
 	}
 	finally {
+		const cleanupErrors = [];
+		
+		// Restore the developer's complete pre-test governance map. Do this even
+		// when a lifecycle assertion fails after an up-only sync changed the map.
+		if (capturedSyncState) {
+			try {
+				await call('updateGlobalState', { sync: originalSyncState });
+				const restored = await call('getMultiple', { lists: 'categories', state: 1 });
+				assert.deepEqual((restored.state && restored.state.sync) || {}, originalSyncState);
+			}
+			catch (error) { cleanupErrors.push(error); }
+		}
+		
 		// Consumers must be deleted before the Plugin and Category they reference.
 		// Prefix matching also catches a partial create before its response returned.
-		await cleanupFixtures([
-			{ list: 'events', method: 'deleteEvent', match: item => item.id === eventID || (item.title || '').startsWith('CLI Sync Test ' + stamp) },
-			{ list: 'plugins', method: 'deletePlugin', match: item => item.id === pluginID || (item.title || '').startsWith('CLI Sync Test ' + stamp) },
-			{ list: 'categories', method: 'deleteCategory', match: item => [categoryID, deleteCategoryID].includes(item.id) || (item.title || '').startsWith('CLI Sync Test ' + stamp) }
-		]);
+		try {
+			await cleanupFixtures([
+				{ list: 'events', method: 'deleteEvent', match: item => item.id === eventID || (item.title || '').startsWith('CLI Sync Test ' + stamp) },
+				{ list: 'plugins', method: 'deletePlugin', match: item => item.id === pluginID || (item.title || '').startsWith('CLI Sync Test ' + stamp) },
+				{ list: 'categories', method: 'deleteCategory', match: item => [categoryID, deleteCategoryID].includes(item.id) || (item.title || '').startsWith('CLI Sync Test ' + stamp) }
+			]);
+		}
+		catch (error) { cleanupErrors.push(error); }
+		
+		if (cleanupErrors.length) {
+			throw new AggregateError(cleanupErrors, 'Sync fixture or global-state cleanup failed. Check the local server before rerunning.');
+		}
 	}
 });

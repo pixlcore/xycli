@@ -77,6 +77,10 @@ test('standard API validation rejects unknown properties with careful suggestion
 		/^Error: Unsupported property for create_plugin: "completely_unknown"\.$/
 	);
 	assert.throws(
+		() => context.validateStandardAPIRequest('updateEvent', { id: 'event', sync: true }),
+		/Unsupported property for update_event: "sync"\./
+	);
+	assert.throws(
 		() => context.validateStandardAPIRequest('updateSecret', { id: 'vault', notess: 'Typo' }),
 		/Unsupported property for update_secret: "notess"\. Did you mean "notes"\?/
 	);
