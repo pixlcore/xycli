@@ -405,6 +405,7 @@ const app = {
 			console.error(msg);
 			if (msg.message) msg = msg.message;
 		}
+		cli.args.quiet = false;
 		die( "\n ❌ " + red.bold("ERROR: ") + yellow.bold(msg) + "\n\n" + extra );
 	}
 	
