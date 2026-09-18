@@ -26,6 +26,7 @@ xy hooks
 xy marketplace
 xy event EVENT_ID --export event.json
 xy import event.json
+xy sync ./ --up events,plugins --dry
 ```
 
 Use plural commands such as `events`, `jobs`, and `tickets` to browse collections, and singular commands such as `event`, `job`, and `ticket` to work with one item. Names and titles are matched fuzzily wherever `ID_OR_TITLE` is shown. You can use the `help` system to get details for each command:
@@ -96,6 +97,8 @@ xy help marketplace get
 xy help marketplace install
 xy help export
 xy help import
+xy help sync
+xy help sync setup
 ```
 
 # Command Reference
@@ -180,6 +183,112 @@ Dependencies are imported before the objects that use them. Circular dependencie
 The preview identifies updates and events with active triggers. Confirmed imports preserve the settings in the file, so enabled schedules or other triggers can run automatically afterward. `--dry` always previews, even with `--confirm`.
 
 Your configured permissions still apply during import. If an item fails, import stops and reports each item as `created`, `updated`, `failed`, or `pending`. Earlier successful changes remain in place; there is no automatic rollback. JSON output includes these results, and failed imports exit with a nonzero status.
+
+## sync
+
+Sync existing xyOps definitions with a directory of XYPDF files. Each run scans the directory and its subdirectories, shows any differences, and applies changes in the directions you select. **Changes are applied immediately unless you add `--dry`; there is no `--confirm` step.**
+
+```sh
+xy sync ./ --up events,plugins --dry
+xy sync ./ --up events,plugins
+xy sync ./ --down events,plugins --dry
+xy sync ./ --down events,plugins
+xy sync ./ --up categories,plugins --down events --dry
+xy sync ./ --up events --down events --dry
+xy sync ./ --up all --dry
+xy sync --up events,plugins --verbose
+```
+
+Pass one or more base directories, or omit them to scan the current directory. Folder layout and filenames are up to you. Use `xy help sync setup` to export a starter tree.
+
+**Directions and resource types**
+
+- `--up TYPES` updates xyOps from local files.
+- `--down TYPES` updates local files from xyOps.
+- `--dry` previews changes without applying them.
+- `--verbose` shows full diffs and API requests and responses.
+
+You must enable at least one direction. `TYPES` is a comma-separated list of `alerts`, `api_keys`, `categories`, `channels`, `events`, `groups`, `monitors`, `plugins`, `tags`, or `web_hooks`. Use `all` to select every supported type. Workflows are included under `events`. Buckets, Secrets, Users, and Roles are not supported.
+
+Enable both directions for the same type to use experimental two-way sync. The newest modification time wins, including external property files. Git checkouts can reset filesystem timestamps, so prefer one-way sync when reliable conflict handling matters. Dry runs never update xyOps, write files, run completion commands, or send notifications.
+
+Sources must be plain `.json` XYPDF files containing exactly one item each. Objects are matched by type and exact ID, not by title. Sync does not create new xyOps objects or local files for newly added objects. Use setup or individual exports to add local sources, and keep their original IDs.
+
+External string properties are loaded automatically from adjacent files named `BASENAME-PROPERTY.EXT`, such as `My-Plugin-script.js` beside `My-Plugin.json`, or `My-Event-params.script.sh` beside `My-Event.json`. The extension is your choice. Keep only one external file per property, and rename its basename along with the JSON file.
+
+**Delete mode**
+
+Add `--delete TYPES` to delete xyOps objects that have no matching source in the scanned directories. Deletion always happens in xyOps, even with `--down`.
+
+```sh
+xy sync ./ --up events,plugins --delete events --dry
+xy sync ./ --up events,plugins --delete events
+```
+
+**The scanned directories must contain a complete inventory of every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions. Include stock and Marketplace objects in your inventory, verify that all source directories are available, and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates or deletions begin.
+
+**Completion commands and notifications**
+
+```sh
+xy sync ./ --down events,plugins \
+	--down_cmd "git add . && git commit -m 'Sync from xyOps'"
+xy sync ./ --up events,plugins \
+	--error_email ops@example.com --error_event EVENT_ID
+```
+
+- `--up_cmd COMMAND` runs after successful updates to xyOps.
+- `--down_cmd COMMAND` runs after successful updates to local files.
+- `--cmd_timeout SECONDS` limits each command, defaulting to 30 seconds.
+- `--error_email ADDRESS` sends warnings and errors by email through xyOps.
+- `--error_event EVENT_ID` runs an Event on warnings or errors.
+
+Completion commands run in a local shell in the first base directory. Deletions alone do not trigger them. Event notifications receive `input.data.errors` and `input.data.warnings`.
+
+The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails.
+
+**Saved defaults**
+
+Put sync defaults under a `sync` object in `/etc/xyops/cli.json` or `~/.config/xyops/cli.json`:
+
+```json
+{
+	"sync": {
+		"up": ["events", "plugins"],
+		"down": false,
+		"delete": false,
+		"error_email": "ops@example.com"
+	}
+}
+```
+
+Command-line options override saved sync settings. Use `--up false`, `--down false`, or `--delete false` to disable a saved mode. The optional `base_dirs` setting takes a JSON array of directory paths and overrides positional directories; the command-line form is `--base_dirs '["./"]'`. These defaults apply to sync runs, not setup.
+
+## sync setup
+
+Export existing xyOps definitions into a starter sync tree in the current directory. Use a fresh directory so the generated files are easy to review before your first sync.
+
+```sh
+xy sync setup events plugins categories --dry
+xy sync setup events plugins categories --file_props script,params.script
+xy sync setup all
+xy sync setup all --stock --marketplace
+xy sync setup events plugins --force
+xy sync --setup events,plugins --file_props script,params.script
+```
+
+Choose one or more resource types separated by spaces, or use `all`. Supported types are the same as for `xy sync`. The `--setup TYPES` form also accepts a comma-separated list.
+
+Setup creates one folder per resource type and one XYPDF JSON file per object, using its title as a filename slug. Selecting `events` exports both Events and workflows, with workflows placed in a separate `workflows` folder. Both are synced with `--up events` or `--down events`.
+
+- `--file_props PATHS` extracts string properties into adjacent files.
+- `--stock` includes stock objects, which are omitted by default.
+- `--marketplace` includes Marketplace objects, which are omitted by default.
+- `--force` allows generated files to overwrite existing destinations.
+- `--dry` previews the layout without creating directories or writing files.
+
+For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically.
+
+Without `--force`, setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, include both `--stock` and `--marketplace` and verify that every selected xyOps object has a source file.
 
 ## api
 
