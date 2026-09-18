@@ -42,12 +42,19 @@ node --test --test-reporter=spec test/monitors.test.js
 
 The controller exits with a nonzero status if any suite fails. A failed lifecycle check stops the remaining dependent steps in that suite, runs cleanup, and allows the next suite to proceed.
 
+The configuration suite runs offline with disposable user directories and does not contact xyOps. Run it directly without configuring a development server:
+
+```sh
+node --test test/config.test.js
+```
+
 ## Coverage
 
 | Suite | Coverage |
 | --- | --- |
 | `categories` | CRUD, actions and limits, JSON input, validation, pagination, help |
 | `channels` | CRUD, recipients, indexed edits, filters, validation, help |
+| `config` | Offline user-file updates, inherited-setting isolation, missing-file creation, dotted edits, permissions, and read-only display |
 | `log` | Log searches, latest rows, matching, column selection, native output |
 | `markdown` | Terminal rendering, inline formatting inside list items, typographic bullets, and output margins |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |
