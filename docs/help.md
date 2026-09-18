@@ -329,7 +329,9 @@ xy config --items_per_page 25
 xy config --base_url http://localhost:5522 --api_key YOUR_API_KEY
 ```
 
-Configuration may also come from `/etc/xyops/cli.json` and `XYOPS_`-prefixed environment variables. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
+Updates load the user file separately and apply only the settings specified on the command line, preserving other user settings. System settings and environment overrides are not copied into the file. If the user file does not exist, it is created with only the supplied settings.
+
+Configuration loads `/etc/xyops/cli.json` first, then `~/.config/xyops/cli.json`, then `XYOPS_`-prefixed environment variables. Later sources override matching top-level settings. Environment overrides still take precedence over saved user settings. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
 
 ## doc
 
