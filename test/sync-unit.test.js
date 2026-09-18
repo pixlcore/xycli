@@ -14,6 +14,7 @@ const script = `
 	const options = JSON.parse(process.argv[1]);
 	cli.args.quiet = true;
 	const calls = [];
+	const requests = [];
 	const app = {
 		...require('./lib/sync.js'),
 		args: options.args,
@@ -21,13 +22,13 @@ const script = `
 			sync: options.config || {},
 			ui: {
 				list_list: ['categories', 'events', 'plugins'].map(id => ({ id })),
-				data_types: { category: { list: 'categories' } }
+				data_types: { category: { list: 'categories' }, plugin: { list: 'plugins' } }
 			}
 		},
 		state: {},
 		categories: options.categories || [],
 		events: [],
-		plugins: [],
+		plugins: options.plugins || [],
 		version: 'test',
 		dry: !!options.args.dry,
 		color() { return cli.chalk.white; },
@@ -35,8 +36,9 @@ const script = `
 		compareVersions() { return 0; },
 		async getMultiple() {},
 		die(message) { throw new Error(message); },
-		async callStandardAPI(method) {
+		async callStandardAPI(method, data) {
 			calls.push(method);
+			requests.push({ method, data });
 			if (options.failAPI === method) throw new Error('Fixture API failure');
 		}
 	};
@@ -44,7 +46,7 @@ const script = `
 		console.error(err.message);
 		process.exitCode = 1;
 	}).finally(() => {
-		console.log(JSON.stringify({ calls, errors: app.errors || [], warnings: app.warnings || [] }));
+		console.log(JSON.stringify({ calls, requests, errors: app.errors || [], warnings: app.warnings || [] }));
 	});
 `;
 
@@ -195,4 +197,46 @@ test('duplicate-source warnings exit nonzero without applying changes', t => {
 		assert.deepEqual(result.report.errors, []);
 		assert.deepEqual(result.report.calls, []);
 	}
+});
+
+test('sync deletion ignores stock and Marketplace markers for every selected type', t => {
+	// No objects have local sources. Only unmarked, user-owned definitions may
+	// become deletion candidates, in either an apply run or a dry-run preview.
+	const protectedObjects = [
+		{ id: 'stock', title: 'Stock', stock: true },
+		{ id: 'marketplace', title: 'Marketplace', marketplace: { id: 'fixture/plugin' } },
+		{ id: 'both', title: 'Both', stock: true, marketplace: {} },
+		{ id: 'stock-false', title: 'Stock marker present', stock: false },
+		{ id: 'marketplace-null', title: 'Marketplace marker present', marketplace: null }
+	];
+	for (const dry of [false, true]) {
+		const result = runSync(t, {
+			categories: [...protectedObjects, { id: 'custom-category', title: 'Custom Category' }],
+			plugins: [...protectedObjects, { id: 'custom-plugin', title: 'Custom Plugin' }],
+			args: {
+				up: 'categories,plugins', delete: 'categories,plugins', dry,
+				// Setup's inclusion switches must never override deletion protection.
+				stock: true, marketplace: true
+			}
+		});
+		assert.equal(result.status, 0);
+		assert.deepEqual(result.report.errors, []);
+		assert.deepEqual(result.report.warnings, []);
+		assert.deepEqual(result.report.requests.filter(req => req.method.startsWith('delete_')), [
+			{ method: 'delete_category', data: { id: 'custom-category' } },
+			{ method: 'delete_plugin', data: { id: 'custom-plugin' } }
+		]);
+	}
+});
+
+test('sync deletion makes no delete requests when only protected objects exist', t => {
+	const result = runSync(t, {
+		plugins: [
+			{ id: 'shell', title: 'Shell Plugin', stock: true },
+			{ id: 'installed', title: 'Installed Plugin', marketplace: { id: 'fixture/plugin' } }
+		],
+		args: { up: 'plugins', delete: 'plugins' }
+	});
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.requests, []);
 });

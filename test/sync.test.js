@@ -367,6 +367,7 @@ test('sync', async t => {
 		
 		let deleteCategoryFile;
 		let categoriesBeforeDelete;
+		let deleteSyncState;
 		
 		await check('prepare and verify a complete Category delete inventory', async () => {
 			fs.mkdirSync(deleteSetupRoot, { recursive: true });
@@ -387,10 +388,18 @@ test('sync', async t => {
 			}
 			
 			categoriesBeforeDelete = (await call('getMultiple', { lists: 'categories' })).categories;
-			assert.equal(sourceByID.size, categoriesBeforeDelete.length, 'Export contains every Category');
+			const remoteIDs = new Set(categoriesBeforeDelete.map(category => category.id));
+			for (const id of sourceByID.keys()) {
+				assert.ok(remoteIDs.has(id), 'Export contains an existing Category: ' + id);
+			}
+			
+			// Stock and Marketplace definitions need no local source to be protected.
 			for (const category of categoriesBeforeDelete) {
+				if (Object.hasOwn(category, 'stock') || Object.hasOwn(category, 'marketplace')) continue;
 				assert.ok(sourceByID.has(category.id), 'Export contains Category: ' + category.id);
 			}
+			deleteSyncState = Object.fromEntries([...sourceByID.keys()]
+				.filter(id => id !== deleteCategoryID).map(id => ['category-' + id, true]));
 			
 			deleteCategoryFile = sourceByID.get(deleteCategoryID);
 			assert.ok(deleteCategoryFile, 'Disposable delete Category was exported');
@@ -449,7 +458,7 @@ test('sync', async t => {
 			assert.equal(fixtures.deleteCategory, undefined);
 			assert.deepEqual(actualIDs, expectedIDs, 'No other Categories were deleted');
 			assert.ok(fixtures.category && fixtures.plugin && fixtures.event, 'Resources outside the missing fixture remain');
-			assert.deepEqual(fixtures.syncState, Object.fromEntries(expectedIDs.map(id => ['category-' + id, true])), 'Up-only delete mode tracks the remaining Category sources');
+			assert.deepEqual(fixtures.syncState, deleteSyncState, 'Up-only delete mode tracks the remaining Category sources');
 		});
 	}
 	finally {
