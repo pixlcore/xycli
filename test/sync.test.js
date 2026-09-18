@@ -402,7 +402,7 @@ test('sync', async t => {
 			
 			const output = xy([
 				'sync', Path.dirname(deleteCategoryFile), '--up', 'categories', '--down', 'false', '--delete', 'categories'
-			], { cwd: temp });
+			], { cwd: temp, fail: true });
 			const fixtures = await getFixtures();
 			
 			assert.match(output, /empty, malformed or missing items array/);

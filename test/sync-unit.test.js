@@ -59,8 +59,11 @@ function runSync(t, options) {
 		fs.writeFileSync(Path.join(dir, 'Category.json'), JSON.stringify({
 			type: 'xypdf',
 			version: '1.0',
-			items: [{ type: 'category', data: options.source }]
+			items: options.emptyItems ? [] : [{ type: 'category', data: options.source }]
 		}));
+		if (options.duplicateSource) {
+			fs.copyFileSync(Path.join(dir, 'Category.json'), Path.join(dir, 'Duplicate.json'));
+		}
 	}
 	if (options.missingDir) args.other = [Path.join(dir, 'missing')];
 	
@@ -145,18 +148,51 @@ test('sync completion-command errors also exit nonzero and notify', t => {
 	assert.equal(result.report.calls.at(-1), 'runEvent');
 });
 
-test('successful and warning-only syncs retain a zero exit status', t => {
+test('successful syncs retain a zero exit status', t => {
 	const success = runSync(t, { args: { up: 'categories' } });
 	assert.equal(success.status, 0);
 	assert.deepEqual(success.report.errors, []);
-	
-	// Missing remote definitions are existing scan warnings, not sync errors.
-	const warning = runSync(t, {
-		source: { id: 'missing', title: 'Missing' },
-		args: { up: 'categories' }
-	});
-	assert.equal(warning.status, 0);
-	assert.equal(warning.report.warnings.length, 1);
-	assert.deepEqual(warning.report.errors, []);
-	assert.deepEqual(warning.report.calls, []);
+});
+
+test('scan warnings exit nonzero and allow notifications, except in dry mode', t => {
+	// Both missing objects and malformed sources stop the scan before changes.
+	// Quiet mode must not hide their failure status, and dry mode still fails
+	// validation while deliberately skipping notification actions.
+	for (const dry of [false, true]) {
+		for (const emptyItems of [false, true]) {
+			const result = runSync(t, {
+				source: { id: 'missing', title: 'Missing' },
+				emptyItems,
+				args: {
+					up: 'categories', dry, quiet: true,
+					error_email: 'fixture@example.invalid',
+					error_event: 'fixture_error_event'
+				}
+			});
+			assert.equal(result.status, 1);
+			assert.equal(result.report.warnings.length, 1);
+			assert.deepEqual(result.report.errors, []);
+			assert.deepEqual(result.report.calls, dry ? [] : ['sendEmail', 'runEvent']);
+		}
+	}
+});
+
+test('duplicate-source warnings exit nonzero without applying changes', t => {
+	const category = { id: 'fixture', title: 'Fixture', notes: 'Remote' };
+	for (const args of [
+		{ up: 'categories', delete: 'categories' },
+		{ down: 'categories' },
+		{ up: 'categories', dry: true }
+	]) {
+		const result = runSync(t, {
+			categories: [category],
+			source: { ...category, notes: 'Local' },
+			duplicateSource: true,
+			args
+		});
+		assert.equal(result.status, 1);
+		assert.match(result.report.warnings[0], /Duplicate source item found/);
+		assert.deepEqual(result.report.errors, []);
+		assert.deepEqual(result.report.calls, []);
+	}
 });
