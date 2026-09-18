@@ -401,7 +401,7 @@ test('sync', async t => {
 			writeXYPDF(deleteCategoryFile, { type: 'xypdf', version: '1.0', items: [] });
 			
 			const output = xy([
-				'sync', Path.dirname(deleteCategoryFile), '--down', 'categories', '--delete', 'categories'
+				'sync', Path.dirname(deleteCategoryFile), '--up', 'categories', '--down', 'false', '--delete', 'categories'
 			], { cwd: temp });
 			const fixtures = await getFixtures();
 			
@@ -415,7 +415,7 @@ test('sync', async t => {
 		await check('dry delete previews removal without changing xyOps', async () => {
 			fs.unlinkSync(deleteCategoryFile);
 			const output = xy([
-				'sync', Path.dirname(deleteCategoryFile), '--down', 'categories', '--delete', 'categories', '--dry'
+				'sync', Path.dirname(deleteCategoryFile), '--up', 'categories', '--down', 'false', '--delete', 'categories', '--dry'
 			], { cwd: temp });
 			const fixtures = await getFixtures();
 			
@@ -438,7 +438,7 @@ test('sync', async t => {
 			);
 			
 			const output = xy([
-				'sync', Path.dirname(deleteCategoryFile), '--down', 'categories', '--delete', 'categories'
+				'sync', Path.dirname(deleteCategoryFile), '--up', 'categories', '--down', 'false', '--delete', 'categories'
 			], { cwd: temp });
 			const fixtures = await getFixtures();
 			const categoriesAfterDelete = (await call('getMultiple', { lists: 'categories' })).categories;
@@ -449,7 +449,7 @@ test('sync', async t => {
 			assert.equal(fixtures.deleteCategory, undefined);
 			assert.deepEqual(actualIDs, expectedIDs, 'No other Categories were deleted');
 			assert.ok(fixtures.category && fixtures.plugin && fixtures.event, 'Resources outside the missing fixture remain');
-			assert.deepEqual(fixtures.syncState, {}, 'Down-only delete mode clears global sync governance');
+			assert.deepEqual(fixtures.syncState, Object.fromEntries(expectedIDs.map(id => ['category-' + id, true])), 'Up-only delete mode tracks the remaining Category sources');
 		});
 	}
 	finally {
