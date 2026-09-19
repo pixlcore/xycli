@@ -154,7 +154,7 @@ These options also appear across commands, but are handled by the individual com
 | `--limit N` | Set the number of rows in supported paginated views. In Event or Category mutations, `--limit` can instead append a resource-limit object. |
 | `--page N` | Select a page in supported paginated views, starting with page 1. |
 | `--offset N` | Skip a number of rows in supported paginated views. If `--page` is also supplied, it determines the offset using the selected limit. |
-| `--confirm` | Apply operations that require explicit confirmation, such as imports and many deletes. It does not replace `--dry`, and sync applies changes without this option. |
+| `--confirm` | Apply operations that require explicit confirmation, such as imports and many deletes. It also overrides the update warning for definitions managed by up-only sync. It does not replace `--dry`, and sync applies changes without this option. |
 | `--json @FILE` | Load a JSON object into the command's request options. Use `--json @-` to read it from standard input. This is useful for resource creation, updates, and API calls. |
 | `--export FILE` | Export a supported resource definition from its detail command to an XYPDF file. |
 

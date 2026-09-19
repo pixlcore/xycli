@@ -269,6 +269,27 @@ test('sync', async t => {
 			}
 		});
 		
+		await check('update commands protect definitions under up-only sync management', async () => {
+			const blockedNotes = 'Blocked direct update';
+			const blocked = xy([
+				'category', 'update', categoryID, '--notes', blockedNotes
+			]);
+			const afterBlocked = await getFixtures();
+			
+			assert.match(blocked, /under remote management/);
+			assert.match(blocked, /--confirm/);
+			assert.equal(afterBlocked.category.notes, updatedCategoryNotes);
+			
+			const confirmedDryRun = xy([
+				'category', 'update', categoryID, '--notes', blockedNotes, '--confirm', '--dry'
+			]);
+			const afterDryRun = await getFixtures();
+			
+			assert.doesNotMatch(confirmedDryRun, /under remote management/);
+			assert.match(confirmedDryRun, /API REQUEST PREVIEW: updateCategory/);
+			assert.equal(afterDryRun.category.notes, updatedCategoryNotes);
+		});
+		
 		await check('unchanged upsync is a no-op', async () => {
 			const before = await getFixtures();
 			const output = xy([

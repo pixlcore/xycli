@@ -420,7 +420,9 @@ For automatic two-way operation, use a persistent tree and run every minute. Bot
 
 ## Remote-management warnings
 
-Up-only sync records the managed definitions in xyOps's global sync state. The web interface uses this information to warn that a definition is under remote management and should not be edited there. It is an advisory warning rather than a permission lock.
+Up-only sync records the managed definitions in xyOps's global sync state. The web interface and xyCLI update commands use this information to warn that a definition is under remote management and should not be edited directly.
+
+When an applicable `xy TYPE update` command finds this flag, it displays a yellow warning and stops before sending the update. Add `--confirm` to override the warning for that command. This is an advisory safeguard rather than a permission lock, and it does not change the saved sync state. A later upsync can overwrite the confirmed change with the local definition.
 
 Only types configured for upsync without downsync receive that warning. A down-only run clears the remote-management map; a two-way run omits its two-way definitions. Mixed-direction runs mark only their up-only definitions. Dry runs leave the map unchanged, and an identical map is not rewritten.
 

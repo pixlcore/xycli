@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const Path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const utils = require('../lib/utils.js');
 
 // Run the real sync handler in an isolated process with an in-memory API.
 // This verifies its actual exit status without contacting an xyOps server or
@@ -90,6 +91,73 @@ function runSync(t, options) {
 	const report = JSON.parse(result.stdout.trim().split('\n').pop());
 	return { ...result, report };
 }
+
+test('sync update guard requires confirmation only for the exact managed object', async () => {
+	var warnings = [];
+	var loads = 0;
+	var context = {
+		args: { notes: 'Updated' },
+		async getMultiple() {
+			loads++;
+			this.state = { sync: { 'category-managed': true, 'plugin-shared': true } };
+		},
+		toast(icon, color, message) {
+			warnings.push({ icon, color, message });
+		},
+		die(message) {
+			throw new Error(message);
+		}
+	};
+	
+	assert.equal(await utils.confirmSyncUpdate.call(context, 'category', 'managed', 'category'), false);
+	assert.equal(loads, 1);
+	assert.deepEqual(warnings.map( warning => warning.color ), ['yellow']);
+	assert.match(warnings[0].message, /under remote management/);
+	assert.match(warnings[0].message, /--confirm/);
+	
+	warnings.length = 0;
+	assert.equal(await utils.confirmSyncUpdate.call(context, 'event', 'shared', 'event'), true);
+	assert.deepEqual(warnings, [], 'A matching ID under another type does not block the update');
+});
+
+test('sync update guard consumes a valid confirmation before update validation', async () => {
+	for (const state of [
+		{ sync: { 'category-managed': true } },
+		{ sync: {} }
+	]) {
+		var context = {
+			args: { notes: 'Updated', confirm: true },
+			state,
+			async getMultiple() {},
+			toast() {
+				throw new Error('Confirmed updates must not warn');
+			},
+			die(message) {
+				throw new Error(message);
+			}
+		};
+		
+		assert.equal(await utils.confirmSyncUpdate.call(context, 'category', 'managed', 'category'), true);
+		assert.deepEqual(context.args, { notes: 'Updated' });
+	}
+});
+
+test('sync update guard rejects malformed confirmation values', async () => {
+	var context = {
+		args: { confirm: 'yes' },
+		state: { sync: {} },
+		async getMultiple() {},
+		toast() {},
+		die(message) {
+			throw new Error(message);
+		}
+	};
+	
+	await assert.rejects(
+		utils.confirmSyncUpdate.call(context, 'category', 'managed', 'category'),
+		/Update --confirm must be true or false/
+	);
+});
 
 test('sync rejects deletion with down-only, two-way, or mixed directions before writes', t => {
 	for (const args of [
