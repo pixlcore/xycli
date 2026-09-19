@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const Path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 // Run the real sync handler in an isolated process with an in-memory API.
 // This verifies its actual exit status without contacting an xyOps server or
@@ -19,6 +19,7 @@ const script = `
 		...require('./lib/sync.js'),
 		args: options.args,
 		config: {
+			base_url: 'https://fixture.invalid',
 			sync: options.config || {},
 			ui: {
 				list_list: ['categories', 'events', 'plugins'].map(id => ({ id })),
@@ -239,4 +240,98 @@ test('sync deletion makes no delete requests when only protected objects exist',
 	});
 	assert.equal(result.status, 0);
 	assert.deepEqual(result.report.requests, []);
+});
+
+test('sync PID lock rejects an overlapping run and cleans up afterward', async t => {
+	const dir = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-sync-lock-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const lockFile = Path.join(dir, 'sync.pid');
+	const holderScript = `
+		const cli = require('pixl-cli');
+		cli.global();
+		const sync = require('./lib/sync.js');
+		const app = {
+			...sync,
+			args: {},
+			config: { base_url: 'https://fixture.invalid', sync: { lock_file: process.argv[1] } },
+			die(message) { throw new Error(message); }
+		};
+		app.acquireSyncLock();
+		console.log('LOCKED');
+		setTimeout(() => { app.releaseSyncLock(); }, 750);
+	`;
+	const holder = spawn(process.execPath, ['-e', holderScript, lockFile], {
+		cwd: Path.join(__dirname, '..'),
+		stdio: ['ignore', 'pipe', 'pipe']
+	});
+	
+	await new Promise((resolve, reject) => {
+		let output = '';
+		const timer = setTimeout(() => reject(new Error('Timed out waiting for lock holder')), 5000);
+		holder.stdout.on('data', chunk => {
+			output += chunk;
+			if (output.includes('LOCKED')) {
+				clearTimeout(timer);
+				resolve();
+			}
+		});
+		holder.on('error', reject);
+		holder.on('exit', code => {
+			if (!output.includes('LOCKED')) reject(new Error('Lock holder exited early: ' + code));
+		});
+	});
+	
+	const blocked = runSync(t, {
+		config: { lock_file: lockFile },
+		args: { up: 'categories', quiet: true }
+	});
+	assert.equal(blocked.status, 1);
+	assert.match(blocked.stderr, /Another sync process is already running/);
+	assert.deepEqual(blocked.report.calls, []);
+	const blockedSetup = runSync(t, {
+		config: { lock_file: lockFile },
+		args: { other: ['setup', 'categories'], quiet: true }
+	});
+	assert.equal(blockedSetup.status, 1);
+	assert.match(blockedSetup.stderr, /Another sync process is already running/);
+	assert.deepEqual(blockedSetup.report.calls, []);
+	
+	await new Promise((resolve, reject) => {
+		holder.on('error', reject);
+		holder.on('exit', code => code === 0 ? resolve() : reject(new Error('Lock holder failed: ' + code)));
+	});
+	assert.equal(fs.existsSync(lockFile), false, 'Owner removed its lock at completion');
+	
+	const next = runSync(t, { config: { lock_file: lockFile }, args: { up: 'categories' } });
+	assert.equal(next.status, 0, 'A new sync starts after the owner exits');
+});
+
+test('sync PID lock automatically recovers stale JSON and legacy numeric files', t => {
+	const dir = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-sync-stale-lock-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const lockFile = Path.join(dir, 'sync.pid');
+	const deadPID = 2147483647;
+	
+	for (const contents of [
+		JSON.stringify({ pid: deadPID, started: '2000-01-01T00:00:00.000Z', token: 'stale' }),
+		'' + deadPID
+	]) {
+		fs.writeFileSync(lockFile, contents);
+		const result = runSync(t, { config: { lock_file: lockFile }, args: { up: 'categories' } });
+		assert.equal(result.status, 0);
+		assert.equal(fs.existsSync(lockFile), false, 'Stale lock was replaced and the new lock was cleaned up');
+	}
+});
+
+test('sync PID lock fails closed on malformed lock data', t => {
+	const dir = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-sync-invalid-lock-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const lockFile = Path.join(dir, 'sync.pid');
+	fs.writeFileSync(lockFile, 'not a PID');
+	
+	const result = runSync(t, { config: { lock_file: lockFile }, args: { up: 'categories' } });
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /Invalid sync lock file/);
+	assert.equal(fs.readFileSync(lockFile, 'utf8'), 'not a PID', 'Invalid lock is preserved for manual inspection');
+	assert.deepEqual(result.report.calls, []);
 });

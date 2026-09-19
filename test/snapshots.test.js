@@ -21,11 +21,11 @@ test('snapshots', async t => {
 	assert.ok(serverSnapshot, 'Snapshot tests require one saved Server snapshot');
 	assert.ok(groupSnapshot, 'Snapshot tests require one saved Group snapshot');
 	
-	await check('list returns newest snapshots with pagination metadata', () => {
+	await check('list returns snapshots in descending ID order with pagination metadata', () => {
 		const rows = json(['snapshots', '--limit', '2']);
 		assert.ok(rows.length > 0 && rows.length <= 2);
 		assert.ok(rows.every(row => row.id && row.type && row.date));
-		assert.ok(rows.every((row, idx) => !idx || rows[idx - 1].date >= row.date));
+		assert.ok(rows.every((row, idx) => !idx || rows[idx - 1].id >= row.id));
 		
 		const output = xy(['snapshots', '--limit', '1']);
 		assert.match(output, /ALL SNAPSHOTS/);
@@ -103,7 +103,7 @@ test('snapshots', async t => {
 			'FILESYSTEMS'
 		];
 		sections.forEach(section => assert.match(output, new RegExp(section)));
-		if (serverSnapshot.quickmon && serverSnapshot.quickmon.length) assert.match(output, /QUICK LOOK - SNAPSHOT MINUTE/);
+		if (serverSnapshot.quickmon && serverSnapshot.quickmon.length) assert.match(output, /QUICK LOOK - MINUTE LEADING TO SNAPSHOT/);
 		assert.match(output, /SNAPSHOT MONITORS/);
 		assert.match(output, /SNAPSHOT PROCESSES/);
 		assert.match(output, /SNAPSHOT NETWORK CONNECTIONS/);
@@ -121,7 +121,7 @@ test('snapshots', async t => {
 			'GROUP MONITOR SUMMARY'
 		];
 		sections.forEach(section => assert.match(output, new RegExp(section)));
-		if ((groupSnapshot.quickmons || []).some(rows => rows && rows.length)) assert.match(output, /GROUP QUICK LOOK - SNAPSHOT MINUTE/);
+		if ((groupSnapshot.quickmons || []).some(rows => rows && rows.length)) assert.match(output, /GROUP QUICK LOOK - MINUTE LEADING TO SNAPSHOT/);
 	});
 	
 	await check('optional process and connection tables expand independently', () => {

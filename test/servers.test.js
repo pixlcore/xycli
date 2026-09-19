@@ -141,15 +141,19 @@ test('servers', async t => {
 	});
 	
 	await check('Server view returns live snapshot data as JSON', () => {
-		assert.ok(active[0].title, 'Connected Server has a label');
-		const result = json(['server', active[0].id]);
-		const explicit = json(['server', 'get', active[0].id]);
-		const hostname = json(['server', active[0].hostname]);
-		const title = json(['server', active[0].title]);
-		assert.equal(result.server.id, active[0].id);
-		assert.equal(explicit.server.id, active[0].id);
-		assert.equal(hostname.server.id, active[0].id);
-		assert.equal(title.server.id, active[0].id);
+		// Prefer a labeled Server so title lookup is covered when available, but
+		// keep this test valid for installations where no Server has a title.
+		const server = active.find(item => item.title) || active[0];
+		const result = json(['server', server.id]);
+		const explicit = json(['server', 'get', server.id]);
+		const hostname = json(['server', server.hostname]);
+		assert.equal(result.server.id, server.id);
+		assert.equal(explicit.server.id, server.id);
+		assert.equal(hostname.server.id, server.id);
+		if (server.title) {
+			const title = json(['server', server.title]);
+			assert.equal(title.server.id, server.id);
+		}
 		assert.equal(result.online, true);
 		assert.ok(result.data && result.data.data, 'Server view includes monitoring data');
 		assert.ok(Array.isArray(result.quickmon), 'Server view includes a Quick Look collection');
@@ -259,8 +263,9 @@ test('servers', async t => {
 		}
 	});
 	
-	await check('historical view accepts a local Server label', () => {
-		const result = json(['server', 'history', active[0].title, historyParts.hour]);
+	await check('historical view accepts a local Server name', () => {
+		const serverName = active[0].title || active[0].hostname || active[0].id;
+		const result = json(['server', 'history', serverName, historyParts.hour]);
 		assert.equal(result.server.id, active[0].id);
 		assert.equal(result.range.mode, 'hourly');
 		assert.ok(result.monitors.length, 'Selected hour contains monitoring data');
