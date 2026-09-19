@@ -290,6 +290,34 @@ test('sync', async t => {
 			assert.equal(afterDryRun.category.notes, updatedCategoryNotes);
 		});
 		
+		await check('System reset clears sync governance only after confirmation', async () => {
+			const unconfirmed = xy(['system', 'reset', 'sync']);
+			const afterUnconfirmed = await getFixtures();
+			
+			assert.match(unconfirmed, /clear all sync state flags/);
+			assert.match(unconfirmed, /--confirm/);
+			assert.deepEqual(afterUnconfirmed.syncState, governedState);
+			
+			const dryRun = xy(['system', 'reset', 'sync', '--confirm', '--dry']);
+			const afterDryRun = await getFixtures();
+			
+			assert.match(dryRun, /API REQUEST PREVIEW: update_global_state/);
+			assert.deepEqual(afterDryRun.syncState, governedState);
+			
+			const confirmed = xy(['system', 'reset', 'sync', '--confirm']);
+			const afterConfirmed = await getFixtures();
+			
+			assert.match(confirmed, /sync state flags have been reset/i);
+			assert.deepEqual(afterConfirmed.syncState, {});
+			assert.equal(afterConfirmed.category.notes, updatedCategoryNotes);
+			assert.equal(afterConfirmed.plugin.notes, updatedPluginNotes);
+			assert.equal(afterConfirmed.event.notes, updatedEventNotes);
+			
+			// An unchanged up-only sync must republish its complete governance map.
+			xy(['sync', syncRoot, '--up', 'categories,plugins,events'], { cwd: temp });
+			assert.deepEqual((await getFixtures()).syncState, governedState);
+		});
+		
 		await check('unchanged upsync is a no-op', async () => {
 			const before = await getFixtures();
 			const output = xy([

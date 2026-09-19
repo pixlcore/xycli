@@ -384,6 +384,7 @@ xy system delete events,categories,buckets
 xy system maintenance
 xy system optimize
 xy system reset rates
+xy system reset sync
 xy system restart conductor xyops02.example.com
 xy system shutdown conductor xyops02.example.com
 xy system upgrade workers server1,server2
@@ -392,7 +393,7 @@ xy system diagnostic
 xy system broadcast "System maintenance begins soon"
 ```
 
-Several System operations can interrupt jobs or permanently change data. Commands that import, delete, restart, shut down, or upgrade require `--confirm` before they proceed.
+Several System operations can interrupt jobs or permanently change data. Commands that import, delete, restart, shut down, upgrade, or reset sync state require `--confirm` before they proceed.
 
 ## system export
 
@@ -460,16 +461,20 @@ xy system optimize --dry
 
 ## system reset
 
-Reset daily dashboard statistics or job rate-limit windows. You can reset one rate-limit pool by ID, or omit `--id` to reset every pool.
+Reset daily dashboard statistics, job rate-limit windows, or the global sync state map. You can reset one rate-limit pool by ID, or omit `--id` to reset every pool.
 
 ```sh
 xy system reset daily
 xy system reset rates
 xy system reset rates --id RATE_POOL_ID
 xy system reset rates --dry
+xy system reset sync
+xy system reset sync --dry
 ```
 
 Resetting rate limits immediately restores their full allowance, so queued jobs may begin launching on the next scheduler tick.
+
+Resetting sync state clears every remote-management flag. It does not change any xyOps definition, local file, or saved sync configuration. The web interface and CLI stop showing their sync-management edit warnings until a later up-only sync publishes a new map. The command displays the target and makes no change until you add `--confirm`.
 
 ## system restart
 

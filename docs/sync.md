@@ -428,6 +428,14 @@ Only types configured for upsync without downsync receive that warning. A down-o
 
 Each run publishes its own complete state map rather than merging it with earlier runs.
 
+To clear every remote-management flag manually, run:
+
+```sh
+xy system reset sync --confirm
+```
+
+This resets only the global sync state map. It does not change xyOps definitions, local files, or saved sync settings. The next up-only sync publishes a new map for the definitions it manages.
+
 Make sure only one sync instance talks to one xyOps installation.
 
 ## Delete mode
