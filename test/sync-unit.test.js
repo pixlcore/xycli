@@ -64,6 +64,16 @@ function runSync(t, options) {
 			version: '1.0',
 			items: options.emptyItems ? [] : [{ type: 'category', data: options.source }]
 		}));
+		if (options.prefixedSource) {
+			fs.writeFileSync(Path.join(dir, 'Category-Animals.json'), JSON.stringify({
+				type: 'xypdf',
+				version: '1.0',
+				items: [{ type: 'category', data: options.prefixedSource }]
+			}));
+		}
+		if (options.invalidNeighbor) {
+			fs.writeFileSync(Path.join(dir, 'Category-script.js'), 'console.log("not a category property");\n');
+		}
 		if (options.duplicateSource) {
 			fs.copyFileSync(Path.join(dir, 'Category.json'), Path.join(dir, 'Duplicate.json'));
 		}
@@ -198,6 +208,37 @@ test('duplicate-source warnings exit nonzero without applying changes', t => {
 		assert.deepEqual(result.report.errors, []);
 		assert.deepEqual(result.report.calls, []);
 	}
+});
+
+test('a prefixed XYPDF source is never loaded as a property neighbor', t => {
+	const category = { id: 'general', title: 'General', notes: '' };
+	const animals = { id: 'animals', title: 'General Animals', notes: '' };
+	const result = runSync(t, {
+		categories: [category, animals],
+		source: category,
+		prefixedSource: animals,
+		args: { up: 'categories', dry: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(result.report.requests.some(request => request.method === 'update_category'), false);
+});
+
+test('a property neighbor must resolve to an existing string property', t => {
+	const category = { id: 'fixture', title: 'Fixture', notes: '' };
+	const result = runSync(t, {
+		categories: [category],
+		source: category,
+		invalidNeighbor: true,
+		args: { up: 'categories', dry: true }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /does not match an existing string property/);
+	assert.deepEqual(result.report.errors, []);
+	assert.deepEqual(result.report.calls, []);
 });
 
 test('sync deletion ignores stock and Marketplace markers for every selected type', t => {
