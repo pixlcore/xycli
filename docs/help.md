@@ -186,6 +186,8 @@ Your configured permissions still apply during import. If an item fails, import 
 
 ## sync
 
+For setup, configuration, file layouts, and automation examples, see the dedicated [Filesystem Sync Guide](sync.md).
+
 Sync existing xyOps definitions with a directory of XYPDF files. Each run scans the directory and its subdirectories, shows any differences, and applies changes in the directions you select. **Changes are applied immediately unless you add `--dry`; there is no `--confirm` step.**
 
 ```sh
@@ -214,18 +216,22 @@ Enable both directions for the same type to use experimental two-way sync. The n
 
 Sources must be plain `.json` XYPDF files containing exactly one item each. Objects are matched by type and exact ID, not by title. Sync does not create new xyOps objects or local files for newly added objects. Use setup or individual exports to add local sources, and keep their original IDs.
 
+Repeated sources with the same type and ID generate warnings, even if their contents are identical. Later duplicates are skipped during scanning, and the warnings stop the run before any definition, file, tracking, or deletion changes. Keep one source per object and avoid overlapping base directories. Warning notifications can still run; warnings produce exit status `1`.
+
 External string properties are loaded automatically from adjacent files named `BASENAME-PROPERTY.EXT`, such as `My-Plugin-script.js` beside `My-Plugin.json`, or `My-Event-params.script.sh` beside `My-Event.json`. The extension is your choice. Keep only one external file per property, and rename its basename along with the JSON file.
 
 **Delete mode**
 
-Add `--delete TYPES` to delete xyOps objects that have no matching source in the scanned directories. Deletion always happens in xyOps, even with `--down`.
+Add `--delete TYPES` to delete xyOps objects that have no matching source in the scanned directories. Deletion requires up-only sync and a complete local inventory. The CLI rejects deletion if upsync is disabled or any downsync direction is enabled, including saved defaults and dry runs. Use `--down false` to disable inherited downsync. See [Delete mode](sync.md#delete-mode) before using it.
 
 ```sh
 xy sync ./ --up events,plugins --delete events --dry
 xy sync ./ --up events,plugins --delete events
 ```
 
-**The scanned directories must contain a complete inventory of every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions. Include stock and Marketplace objects in your inventory, verify that all source directories are available, and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates or deletions begin.
+**Objects with a `stock` or `marketplace` property are always ignored by deletion**, including during dry runs. They do not need local source files, and setup inclusion flags cannot override this protection.
+
+**The scanned directories must contain a complete inventory of the other objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions of your own definitions. Verify that all source directories are available and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates or deletions begin.
 
 **Completion commands and notifications**
 
@@ -246,6 +252,10 @@ Completion commands run in a local shell in the first base directory. Deletions 
 
 The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails.
 
+Sync warnings and errors exit with status `1`, including warnings or errors during dry runs and completion-command errors. Completion commands and notifications can finish before the process exits. Runs with no warnings or errors exit with status `0`. Scan warnings stop the run before updates and can trigger notifications.
+
+Every sync and setup command uses a built-in host-local PID lock keyed by `base_url`. An overlapping invocation exits nonzero before doing work, while a dead process's stale lock is replaced automatically. Use `sync.lock_file` or `--lock_file PATH` to set an explicit path, particularly for a service account. The parent directory must already exist and be writable. Use one common path for local accounts targeting the same instance; PID locks do not coordinate separate hosts.
+
 **Saved defaults**
 
 Put sync defaults under a `sync` object in `/etc/xyops/cli.json` or `~/.config/xyops/cli.json`:
@@ -256,12 +266,13 @@ Put sync defaults under a `sync` object in `/etc/xyops/cli.json` or `~/.config/x
 		"up": ["events", "plugins"],
 		"down": false,
 		"delete": false,
+		"lock_file": "/run/xyops/xycli-sync.pid",
 		"error_email": "ops@example.com"
 	}
 }
 ```
 
-Command-line options override saved sync settings. Use `--up false`, `--down false`, or `--delete false` to disable a saved mode. The optional `base_dirs` setting takes a JSON array of directory paths and overrides positional directories; the command-line form is `--base_dirs '["./"]'`. These defaults apply to sync runs, not setup.
+Command-line options override saved sync settings. Use `--up false`, `--down false`, or `--delete false` to disable a saved mode. Positional directories take precedence over `base_dirs`. Without positional directories, sync uses the configured `base_dirs` JSON array, or the current directory if it is not configured. Use `--base_dirs '["./"]'` to override the saved array for one run; positional directories still take precedence. These defaults apply to sync runs, not setup.
 
 ## sync setup
 
@@ -288,7 +299,7 @@ Setup creates one folder per resource type and one XYPDF JSON file per object, u
 
 For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically.
 
-Without `--force`, setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, include both `--stock` and `--marketplace` and verify that every selected xyOps object has a source file.
+Without `--force`, setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, verify that every object eligible for deletion that you intend to keep has a source file. Stock and Marketplace objects are protected from deletion and may be omitted.
 
 ## api
 

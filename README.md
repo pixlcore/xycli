@@ -27,7 +27,7 @@ Browse the [screenshot gallery](docs/screenshots.md) for more views, or jump to 
 - [Global CLI switches](#global-cli-switches)
 - [Tutorial: your first Event, job, and Web Hook](docs/tutorial.md)
 - [Explore and manage xyOps](#explore-and-manage-xyops)
-- [Move definitions between systems](#move-definitions-between-systems)
+- [Transfer data between systems](#transfer-data-between-systems)
 - [Sync your automation with local files](#sync-your-automation-with-local-files)
 - [System operations and logs](#system-operations-and-logs)
 - [Documentation and API access](#documentation-and-api-access)
@@ -141,7 +141,7 @@ XYOPS_COLOR=false xy events --format json --quiet > ./events.json
 xy categories -f jsonc -q > ./categories.json
 ```
 
-Fatal errors print to stderr and exit with a nonzero status even in quiet mode, so redirecting JSON output to a file leaves those errors visible in your terminal. Quiet mode can still suppress command-specific warnings and failure reports, such as sync error messages or import results. Check exit status and any structured results when scripting; omit `--quiet` when you need those detailed diagnostics.
+Fatal errors print to stderr and exit with a nonzero status even in quiet mode, so redirecting JSON output to a file leaves those errors visible in your terminal. Quiet mode can still suppress command-specific warnings and failure reports, such as sync messages or import results. Sync warnings and errors still produce a nonzero exit status. Check exit status and any structured results when scripting; omit `--quiet` when you need those detailed diagnostics.
 
 JSON output varies by command: some local collection views return all matches even when their table view is paginated, while database searches may return only the selected page. Some commands print multiple JSON values, such as the request and response from `xy api`. Check the command reference when using the output in a script.
 
@@ -497,9 +497,11 @@ The push above updates xyOps immediately. Remove `--dry` from the pull command t
 
 Sync supports Alerts, API Keys, Categories, Channels, Events and workflows, Groups, Monitors, Plugins, Tags, and Web Hooks. It updates existing objects and files; use creation commands, imports, setup, or exports to introduce new ones. Two-way sync is experimental and uses modification times, so one-way sync is a better fit for a Git-based source of truth.
 
-Delete mode removes xyOps objects missing from your local inventory and requires a complete inventory of each selected type. Review a dry run before applying it. Sync applies changes without a confirmation step unless you use `--dry`.
+Delete mode is for up-sync only: it removes eligible xyOps objects missing from your local inventory. Objects with a `stock` or `marketplace` property are always protected from deletion and need no local files. Keep a complete inventory of the other objects you intend to retain for each selected type, and review a dry run before applying it. Sync applies changes without a confirmation step unless you use `--dry`.
 
-The dedicated [Sync Guide](docs/sync.md) is **coming soon** and will cover directory layouts, external scripts, directions, Git workflows, saved defaults, notifications, and deletion in detail. Until then, see [Sync commands](docs/help.md#sync) and [Sync setup](docs/help.md#sync-setup).
+Read the dedicated [Sync Guide](docs/sync.md) for setup, file layouts, every option, saved defaults, two-way sync, deletion, notifications, and automation with cron, Git hooks, and GitHub Actions.
+
+- **Command reference:** [Sync commands](docs/help.md#sync) and [Sync setup](docs/help.md#sync-setup).
 
 ## System operations and logs
 

@@ -216,4 +216,4 @@ Return to the [README](../README.md) or explore the [command reference](help.md)
 
 *Review changes between local definition files and xyOps as part of an editor and Git workflow.*
 
-See the [sync overview](../README.md#sync-your-automation-with-local-files) and [sync command reference](help.md#sync). The dedicated [Sync Guide](sync.md) is coming soon.
+See the [Sync Guide](sync.md), [sync overview](../README.md#sync-your-automation-with-local-files), and [sync command reference](help.md#sync).
