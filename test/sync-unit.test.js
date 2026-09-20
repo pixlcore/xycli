@@ -217,6 +217,26 @@ test('sync API errors preserve failure status while still sending both notificat
 	}
 });
 
+test('sync skips the entire delete pass after an update or state API failure', t => {
+	const category = { id: 'fixture', title: 'Fixture', notes: 'Remote' };
+	const orphan = { id: 'orphan', title: 'Orphan', notes: 'Delete candidate' };
+	
+	for (const failAPI of ['update_category', 'update_global_state']) {
+		const result = runSync(t, {
+			categories: [category, orphan],
+			source: { ...category, notes: 'Local' },
+			failAPI,
+			args: { up: 'categories', delete: 'categories' }
+		});
+		
+		assert.equal(result.status, 1);
+		assert.equal(result.report.errors.length, 1);
+		assert.match(result.report.warnings[0], /Delete pass skipped/);
+		assert.equal(result.report.calls.includes('update_global_state'), true);
+		assert.deepEqual(result.report.requests.filter(req => req.method.startsWith('delete_')), []);
+	}
+});
+
 test('sync completion-command errors also exit nonzero and notify', t => {
 	const category = { id: 'fixture', title: 'Fixture', notes: 'Remote' };
 	const result = runSync(t, {

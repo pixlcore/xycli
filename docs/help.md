@@ -231,7 +231,7 @@ xy sync ./ --up events,plugins --delete events
 
 **Objects with a `stock` or `marketplace` property are always ignored by deletion**, including during dry runs. They do not need local source files, and setup inclusion flags cannot override this protection.
 
-**The scanned directories must contain a complete inventory of the other objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions of your own definitions. Verify that all source directories are available and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates or deletions begin.
+**The scanned directories must contain a complete inventory of the other objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions of your own definitions. Verify that all source directories are available and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates begin. If an update or sync-tracking API operation fails, earlier successful updates remain in place, but the entire delete pass is skipped for that run.
 
 **Completion commands and notifications**
 
@@ -250,7 +250,7 @@ xy sync ./ --up events,plugins \
 
 Completion commands run in a local shell in the first base directory. Deletions alone do not trigger them. Event notifications receive `input.data.errors` and `input.data.warnings`.
 
-The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails.
+The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails. Retry the sync after correcting an error; previously applied updates compare equal, and deletion remains disabled until the pre-delete phase completes without warnings or errors.
 
 Sync warnings and errors exit with status `1`, including warnings or errors during dry runs and completion-command errors. Completion commands and notifications can finish before the process exits. Runs with no warnings or errors exit with status `0`. Scan warnings stop the run before updates and can trigger notifications.
 

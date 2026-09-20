@@ -472,7 +472,9 @@ Inspect the entire deletion list and confirm that the directory and remote inven
 xy sync ./ --up events,plugins,categories --down false --delete events
 ```
 
-Deleting an Event does not automatically remove its dependencies. Remote API rules still apply, including restrictions on active jobs and references. Successful earlier updates or deletions are not rolled back if a later deletion fails.
+Deleting an Event does not automatically remove its dependencies. Remote API rules still apply, including restrictions on active jobs and references.
+
+Deletion only begins after every update has completed and the sync-tracking state has been written without warnings or errors. If either phase fails, the entire delete pass is skipped for that run. Earlier successful updates remain in place, so correct the error and retry; definitions already updated will compare equal. Once deletion begins, successful earlier deletions are not rolled back if a later deletion fails.
 
 An unavailable base directory stops the scan, but an existing empty directory can look like an empty inventory. Do not treat that guard as protection against an empty mount, accidental file removal, or missing exports of your own definitions.
 

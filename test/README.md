@@ -67,7 +67,7 @@ node --test test/config.test.js test/sync-unit.test.js
 | `servers` | Active and recently offline lists, local filters, installer generation, historical search, live and historical Server details, charts, processes, connections, pagination, validation, help |
 | `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
 | `sync` | Setup export, isolated filesystem discovery, external property files, dry-run, upsync, downsync, composite global-state governance, no-op detection, and guarded delete mode |
-| `sync-unit` | Offline PID locking and stale recovery, up-only deletion guards, stock/Marketplace deletion protection, inherited settings and CLI overrides, warning/error exit status, duplicates, quiet/dry runs, completion failures, and notification delivery after warnings or errors |
+| `sync-unit` | Offline PID locking and stale recovery, up-only deletion guards, pre-delete failure blocking, stock/Marketplace deletion protection, inherited settings and CLI overrides, warning/error exit status, duplicates, quiet/dry runs, completion failures, and notification delivery after warnings or errors |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |
