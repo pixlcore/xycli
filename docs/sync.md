@@ -232,6 +232,8 @@ This extracts the selected content, if found, and moves it to a neighboring file
 
 The general naming pattern is **`BASENAME-PROPERTY.EXT`**, in the same directory as `BASENAME.json`. Dot paths such as `params.script` identify nested properties. Setup chooses an extension from the executable command or a script's shebang when possible, falling back to JSON-looking content or `.txt`. Normal sync accepts your chosen extension.
 
+Use `--default_ext EXT` to replace the `.txt` fallback when setup cannot detect a type. For example, `--default_ext ps1` and `--default_ext .ps1` both produce `.ps1` neighbors. Detected interpreter and JSON extensions still take precedence. The fallback applies to every undetected property selected by that setup command, so group properties with the same expected file type or run setup separately when needed.
+
 External properties are detected automatically when sync runs; you do not need to repeat `--file_props`. The neighbor's text replaces that property in the local definition before comparison and before an upload. A pull writes the latest value into the existing neighbor file.
 
 You can use this for other string properties too, such as `body` or `notes`. Keep only one neighbor file per unique property path. A neighbor must resolve to a valid property path, and multiple matching neighbors are not treated as alternative versions.
@@ -393,6 +395,7 @@ At least one direction must be enabled. The command is a single run, not a backg
 | `xy sync setup TYPES...` | Export the selected types to the current directory. Separate type names with spaces, or use `all`. |
 | `--setup TYPES` | Alternative setup syntax, accepting comma-separated type names. For example, `xy sync --setup events,plugins`. |
 | `--file_props PATHS` | Extract string properties into adjacent neighbor files. Accepts comma-separated dot paths or a JSON array. |
+| `--default_ext EXT` | Use this extension instead of `txt` when a neighbor's type cannot be detected. A leading dot is optional. |
 | `--stock` | Include stock definitions that ships wit xyOps (e.g. "Shell Plugin"), which setup normally omits. |
 | `--marketplace` | Include Marketplace Plugins, which setup normally omits. |
 | `--force` | Allow generated files to overwrite existing destinations. |

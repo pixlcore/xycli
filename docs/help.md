@@ -281,6 +281,7 @@ Export existing xyOps definitions into a starter sync tree in the current direct
 ```sh
 xy sync setup events plugins categories --dry
 xy sync setup events plugins categories --file_props script,params.script
+xy sync setup events --file_props params.script --default_ext ps1
 xy sync setup all
 xy sync setup all --stock --marketplace
 xy sync setup events plugins --force
@@ -292,12 +293,13 @@ Choose one or more resource types separated by spaces, or use `all`. Supported t
 Setup creates one folder per resource type and one XYPDF JSON file per object, using its title as a filename slug. Selecting `events` exports both Events and workflows, with workflows placed in a separate `workflows` folder. Both are synced with `--up events` or `--down events`.
 
 - `--file_props PATHS` extracts string properties into adjacent files.
+- `--default_ext EXT` sets the fallback neighbor extension instead of `txt`.
 - `--stock` includes stock objects, which are omitted by default.
 - `--marketplace` includes Marketplace objects, which are omitted by default.
 - `--force` allows generated files to overwrite existing destinations.
 - `--dry` previews the layout without creating directories or writing files.
 
-For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically.
+For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically. Setup chooses extensions from executable commands, shebangs, and JSON content when possible. Use `--default_ext ps1` (or `--default_ext .ps1`) to replace the `.txt` fallback for properties whose type cannot be detected. The override does not replace an extension that setup successfully detects.
 
 Without `--force`, setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, verify that every object eligible for deletion that you intend to keep has a source file. Stock and Marketplace objects are protected from deletion and may be omitted.
 

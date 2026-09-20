@@ -14,10 +14,12 @@ const script = `
 	cli.global();
 	const options = JSON.parse(process.argv[1]);
 	cli.args.quiet = true;
+	const sync = require('./lib/sync.js');
+	if (options.setupCwd) process.chdir(options.setupCwd);
 	const calls = [];
 	const requests = [];
 	const app = {
-		...require('./lib/sync.js'),
+		...sync,
 		args: options.args,
 		config: {
 			base_url: 'https://fixture.invalid',
@@ -35,6 +37,7 @@ const script = `
 		dry: !!options.args.dry,
 		color() { return cli.chalk.white; },
 		markdown(text) { return text; },
+		printBoxList() {},
 		compareVersions() { return 0; },
 		async getMultiple() {},
 		die(message) { throw new Error(message); },
@@ -58,6 +61,7 @@ function runSync(t, options) {
 	const dir = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-sync-unit-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	const args = { other: [dir], ...options.args };
+	if (options.setup) args.other = ['setup', ...options.setup];
 	
 	if (options.source) {
 		fs.writeFileSync(Path.join(dir, 'Category.json'), JSON.stringify({
@@ -81,7 +85,11 @@ function runSync(t, options) {
 	}
 	if (options.missingDir) args.other = [Path.join(dir, 'missing')];
 	
-	const result = spawnSync(process.execPath, ['-e', script, JSON.stringify({ ...options, args })], {
+	const result = spawnSync(process.execPath, ['-e', script, JSON.stringify({
+		...options,
+		args,
+		setupCwd: options.setup ? dir : undefined
+	})], {
 		cwd: Path.join(__dirname, '..'),
 		encoding: 'utf8',
 		timeout: 10000
@@ -89,7 +97,7 @@ function runSync(t, options) {
 	assert.ifError(result.error);
 	assert.equal(result.signal, null);
 	const report = JSON.parse(result.stdout.trim().split('\n').pop());
-	return { ...result, report };
+	return { ...result, report, dir };
 }
 
 test('sync update guard requires confirmation only for the exact managed object', async () => {
@@ -214,6 +222,37 @@ test('sync API errors preserve failure status while still sending both notificat
 		assert.equal(result.status, 1);
 		assert.equal(result.report.errors.length, 1);
 		assert.deepEqual(result.report.calls.slice(-2), ['sendEmail', 'runEvent']);
+	}
+});
+
+test('sync setup uses a custom extension only when detection falls back to txt', t => {
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [
+			{ id: 'fallback', title: 'Fallback', command: 'custom-runner', script: 'Write-Host "Hello"\n' },
+			{ id: 'detected', title: 'Detected', command: 'pwsh -File', script: 'Write-Host "Hello"\n' },
+			{ id: 'json', title: 'JSON Data', command: '', script: '{ "hello": true }\n' }
+		],
+		args: { file_props: 'script', default_ext: '.code' }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Fallback-script.code')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Detected-script.ps1')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'JSON-Data-script.json')), true);
+});
+
+test('sync setup rejects unsafe or malformed default extensions before writing', t => {
+	for (const defaultExt of [true, '', '.', '../ps1', 'ps/1', 'ps-1', 'tar.gz']) {
+		const result = runSync(t, {
+			setup: ['plugins'],
+			plugins: [{ id: 'fixture', title: 'Fixture', command: 'custom-runner', script: 'Example\n' }],
+			args: { file_props: 'script', default_ext: defaultExt }
+		});
+		
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /Invalid --default_ext value/);
+		assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
 	}
 });
 
