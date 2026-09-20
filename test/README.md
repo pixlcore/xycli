@@ -8,7 +8,7 @@ Use Node.js 22 or newer and install the CLI dependencies with `npm install`.
 
 Start xyOps at `http://localhost:5522` and configure an administrator API key using your normal CLI config file or the `XYOPS_API_KEY` environment variable. The tests read the same configuration as `xy`, including `XYOPS_BASE_URL` overrides. They refuse to run against a different server address.
 
-Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The Server tests need a connected server, and the Monitor tests also need a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
+Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The Server and Job tests need a connected server, the Job tests need the enabled stock Shell Plugin, and the Monitor tests also need a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
 
 ## Running Tests
 
@@ -55,6 +55,8 @@ node --test test/config.test.js test/sync-unit.test.js
 | `categories` | CRUD, actions and limits, JSON input, validation, pagination, help |
 | `channels` | CRUD, recipients, indexed edits, filters, validation, help |
 | `config` | Offline user-file updates, inherited-setting isolation, missing-file creation, dotted edits, permissions, and read-only display |
+| `events` | CRUD, dependency filters, nested edits, triggers, actions, limits, fields, validation, and help |
+| `jobs` | Event launch, parameter and input overrides, completed reports, output logs, search, rerun, deletion, validation, and help |
 | `log` | Log searches, latest rows, matching, column selection, native output |
 | `markdown` | Terminal rendering, inline formatting inside list items, typographic bullets, and output margins |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |
@@ -80,7 +82,7 @@ Pagination checks that require saved events, completed jobs, or alert history re
 
 The mutating suites create uniquely named disposable objects and remove them in cleanup blocks, including after assertion failures. Test events have no active triggers, channels are never invoked, monitor sources use constants, and Plugin definitions are never executed or attached to other objects. Temporary files live in private operating-system temp directories and are removed by native test hooks.
 
-The Marketplace suite installs and upgrades `pixlcore/xyplug-ai`, then deletes it without executing or attaching it to an Event. The suite requires this product to be uninstalled when the test begins and removes its own installation during cleanup. Ticket fixtures remain in `draft` for their entire lifecycle so assigned test users never receive email notifications.
+The Job suite creates one enabled Event with no triggers, launches short-lived Shell Plugin Jobs only through explicit test commands, and deletes the completed Jobs and Event. The Marketplace suite installs and upgrades `pixlcore/xyplug-ai`, then deletes it without executing or attaching it to an Event. The suite requires this product to be uninstalled when the test begins and removes its own installation during cleanup. Ticket fixtures remain in `draft` for their entire lifecycle so assigned test users never receive email notifications.
 
 API key tests keep plaintext secrets in memory. Export files contain the stored hash and mask, and are deleted after the test. Captured CLI output is omitted from process failure messages because it can contain credentials.
 
