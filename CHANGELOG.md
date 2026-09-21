@@ -1,5 +1,26 @@
 # xyCLI Changelog
 
+## Version v1.0.5
+
+> September 21, 2026
+
+- [`2542921`](https://github.com/pixlcore/xycli/commit/25429212b664130bf767db85f52610c8d07c00aa): Version 1.0.5
+- [`8818ec6`](https://github.com/pixlcore/xycli/commit/8818ec6291c0d06ec6b48174443eaf330682cff2): Bug FIx: Help system was breaking on Windows due to CRLF line endings.
+
+## Version v1.0.4
+
+> September 21, 2026
+
+- [`553d4d9`](https://github.com/pixlcore/xycli/commit/553d4d95eec0dd4e966dba03d1cccadee49454fc): Version 1.0.4
+- [`4a68d5a`](https://github.com/pixlcore/xycli/commit/4a68d5ad6ab1d2c28b5a5a933e6c6ec711fd2d90): Bug Fix: Validate local command routing before requiring a configured server.
+
+## Version v1.0.3
+
+> September 21, 2026
+
+- [`00c2805`](https://github.com/pixlcore/xycli/commit/00c280596899cee1de66a4179684d1a7992ee1d9): Version 1.0.3
+- [`82777d0`](https://github.com/pixlcore/xycli/commit/82777d01cb751769e14987a7cd86e0d71f91ee79): Feature: Add Windows support.  Fixes #3.
+
 ## Version v1.0.2
 
 > September 20, 2026
