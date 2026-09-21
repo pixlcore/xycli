@@ -1,6 +1,6 @@
 {
 	"name": "@pixlcore/xycli",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "A complete command-line interface for the xyOps workflow automation system.",
 	"author": "Joseph Huckaby <jhuckaby@pixlcore.com>",
 	"homepage": "https://github.com/pixlcore/xycli",
