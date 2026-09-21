@@ -1,5 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const Path = require('node:path');
 const { xy } = require('./helpers/common.js');
 
 // Deliberately shadow any developer-machine configuration. Help and command
@@ -10,9 +11,15 @@ const offlineEnv = {
 };
 
 const offlineFailure = { fail: true, env: offlineEnv };
+const crlfHelpPreload = Path.join(__dirname, 'helpers', 'crlf-help.js');
 
 test('help is available without server credentials', () => {
 	const output = xy(['help'], { env: offlineEnv });
+	assert.match(output, /HELP: OVERVIEW/);
+});
+
+test('help parses a document with Windows line endings', () => {
+	const output = xy(['help'], { env: offlineEnv, preload: crlfHelpPreload });
 	assert.match(output, /HELP: OVERVIEW/);
 });
 

@@ -380,7 +380,10 @@ const app = {
 	printHelp(heading) {
 		// print named section from help file
 		heading = heading.toLowerCase();
-		var md = fs.readFileSync(Path.join(__dirname, 'docs', 'help.md'), 'utf8').trim() + "\n\n# end sentinel\n";
+		// Git may check this file out with CRLF on Windows. Normalize it before
+		// matching headings so the parser behaves identically on every platform.
+		var md = fs.readFileSync(Path.join(__dirname, 'docs', 'help.md'), 'utf8')
+			.replace(/\r\n?/g, '\n').trim() + "\n\n# end sentinel\n";
 		var re = new RegExp( "(^|\\n)(\\#+)\\s+(" + Tools.escapeRegExp(heading) + ")\\n([\\s\\S]*?)\\n\#+\\s+" );
 		var matches = md.match(re);
 		if (!matches) {
