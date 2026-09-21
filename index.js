@@ -198,6 +198,34 @@ const app = {
 			return;
 		}
 		
+		// Validate local command routing before requiring a configured server. This
+		// keeps help and typo diagnostics available during initial CLI setup. Export
+		// is excluded because it also supports portable resource types that do not
+		// have their own complete command routers yet.
+		if (!('export' in args) && !this['cmd_' + cmd]) {
+			// Allow the user to swap the first two args if the second is a known command.
+			if (this['cmd_' + args.other[0]]) {
+				var new_cmd = args.other[0];
+				args.other[0] = cmd;
+				cmd = new_cmd;
+			}
+			else {
+				var suggestion = this.findClosestString(cmd, TOP_LEVEL_COMMANDS);
+				this.die(
+					"Unknown command: " + cmd + (suggestion ? '. Did you mean "' + suggestion + '"?' : ''),
+					"Available Commands: " + TOP_LEVEL_COMMANDS.join(', ') + "\n\n"
+				);
+			}
+		}
+		
+		// Help is entirely local, so it should work before a user has configured an
+		// API key or server URL, and should never make a network request.
+		if (cmd == 'help') {
+			await this.cmd_help();
+			print("\n");
+			return;
+		}
+		
 		delete args.debug;
 		delete args.echo;
 		delete args.quiet;
@@ -271,22 +299,6 @@ const app = {
 			await this.cmd_export_object(cmd);
 			print("\n");
 			return;
-		}
-		
-		if (!this['cmd_' + cmd]) {
-			// allow user to swap first two args, if 2nd is known command
-			if (this['cmd_' + args.other[0]]) {
-				var new_cmd = args.other[0];
-				args.other[0] = cmd;
-				cmd = new_cmd;
-			}
-			else {
-				var suggestion = this.findClosestString(cmd, TOP_LEVEL_COMMANDS);
-				this.die(
-					"Unknown command: " + cmd + (suggestion ? '. Did you mean "' + suggestion + '"?' : ''),
-					"Available Commands: " + TOP_LEVEL_COMMANDS.join(', ') + "\n\n"
-				);
-			}
 		}
 		
 		// merge in config from xyops
