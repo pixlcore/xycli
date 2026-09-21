@@ -26,12 +26,12 @@ const script = `
 			sync: options.config || {},
 			ui: {
 				list_list: ['categories', 'events', 'plugins'].map(id => ({ id })),
-				data_types: { category: { list: 'categories' }, plugin: { list: 'plugins' } }
+				data_types: { category: { list: 'categories' }, event: { list: 'events' }, plugin: { list: 'plugins' } }
 			}
 		},
 		state: {},
 		categories: options.categories || [],
-		events: [],
+		events: options.events || [],
 		plugins: options.plugins || [],
 		version: 'test',
 		dry: !!options.args.dry,
@@ -82,6 +82,18 @@ function runSync(t, options) {
 		if (options.duplicateSource) {
 			fs.copyFileSync(Path.join(dir, 'Category.json'), Path.join(dir, 'Duplicate.json'));
 		}
+	}
+	if (options.existingSources) {
+		options.existingSources.forEach(source => {
+			const file = Path.join(dir, source.path);
+			fs.mkdirSync(Path.dirname(file), { recursive: true });
+			const contents = source.contents !== undefined ? source.contents : JSON.stringify({
+				type: 'xypdf',
+				version: '1.0',
+				items: [{ type: source.type, data: source.data }]
+			});
+			fs.writeFileSync(file, contents);
+		});
 	}
 	if (options.missingDir) args.other = [Path.join(dir, 'missing')];
 	
@@ -252,6 +264,95 @@ test('sync setup rejects unsafe or malformed default extensions before writing',
 		
 		assert.equal(result.status, 1);
 		assert.match(result.stderr, /Invalid --default_ext value/);
+		assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
+	}
+});
+
+test('sync setup new exports only remote definitions missing from the local tree', t => {
+	const existing = { id: 'existing', title: 'Existing', command: 'node', script: 'console.log("Existing");\n' };
+	const added = { id: 'added', title: 'Added Plugin', command: 'custom-runner', script: 'Write-Host "Added"\n' };
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [existing, added],
+		existingSources: [{
+			path: 'custom/layout/Renamed-Existing.json',
+			type: 'plugin',
+			data: existing
+		}],
+		args: { new: true, file_props: 'script', default_ext: 'ps1' }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin-script.ps1')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Existing.json')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'custom', 'layout', 'Renamed-Existing.json')), true);
+});
+
+test('sync setup new dry run discovers additions without writing them', t => {
+	const existing = { id: 'existing', title: 'Existing', command: 'node', script: 'Existing\n' };
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [existing, { id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+		existingSources: [{ path: 'Existing-Renamed.json', type: 'plugin', data: existing }],
+		args: { new: true, dry: true, file_props: 'script' }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
+});
+
+test('sync setup new preserves existing Events and writes new workflows separately', t => {
+	const existing = { id: 'existing-event', title: 'Existing Event', type: 'event' };
+	const workflow = { id: 'new-workflow', title: 'New Workflow', type: 'workflow' };
+	const result = runSync(t, {
+		setup: ['events'],
+		events: [existing, workflow],
+		existingSources: [{ path: 'custom/Event.json', type: 'event', data: existing }],
+		args: { new: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'workflows', 'New-Workflow.json')), true);
+});
+
+test('sync setup new rejects overwrite mode and malformed values before writing', t => {
+	for (const args of [
+		{ new: true, force: true },
+		{ new: 'yes' }
+	]) {
+		const result = runSync(t, {
+			setup: ['plugins'],
+			plugins: [{ id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+			args
+		});
+		
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /--new/);
+		assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
+	}
+});
+
+test('sync setup new aborts on duplicate or malformed existing sources before writing', t => {
+	const existing = { id: 'existing', title: 'Existing', command: 'node', script: 'Existing\n' };
+	for (const existingSources of [
+		[
+			{ path: 'one.json', type: 'plugin', data: existing },
+			{ path: 'nested/two.json', type: 'plugin', data: existing }
+		],
+		[{ path: 'broken.json', contents: '{ nope' }],
+		[{ path: 'orphan.json', type: 'plugin', data: { id: 'missing', title: 'Missing' } }]
+	]) {
+		const result = runSync(t, {
+			setup: ['plugins'],
+			plugins: [existing, { id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+			existingSources,
+			args: { new: true }
+		});
+		
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /Duplicate source item|Failed to parse JSON file|Cannot find plugin in xyOps/);
 		assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
 	}
 });

@@ -159,6 +159,17 @@ xy sync setup events plugins --force
 
 `--force` allows generated JSON and external files to be overwritten. It does not clean up old filenames, solve filename collisions, or preserve your local edits. Export into a fresh directory when adding newly created objects, then move their reviewed files into the existing tree. 
 
+To add only definitions that are new to an existing sync tree, run setup from the tree's root with `--new`:
+
+```sh
+xy sync setup events plugins categories --new --file_props script,params.script --dry
+xy sync setup events plugins categories --new --file_props script,params.script
+```
+
+New-only setup scans the current directory recursively and indexes existing XYPDF sources by item type and exact ID. Renamed files and custom folders are preserved. Remote definitions not found in that index are written to setup's normal type folders; existing definitions are skipped without being rewritten. Malformed, duplicate, unsupported, or locally orphaned sources stop the operation before new files are written. `--new` cannot be combined with `--force`.
+
+This is an additive local export. It does not create definitions in xyOps, and ordinary upsync or downsync still updates only definitions that already exist on both sides.
+
 Alternatively, you can export single objects at a time:
 
 ```sh
@@ -396,6 +407,7 @@ At least one direction must be enabled. The command is a single run, not a backg
 | `--setup TYPES` | Alternative setup syntax, accepting comma-separated type names. For example, `xy sync --setup events,plugins`. |
 | `--file_props PATHS` | Extract string properties into adjacent neighbor files. Accepts comma-separated dot paths or a JSON array. |
 | `--default_ext EXT` | Use this extension instead of `txt` when a neighbor's type cannot be detected. A leading dot is optional. |
+| `--new` | Export only remote definitions whose type and ID are not already present in the current local tree. |
 | `--stock` | Include stock definitions that ships wit xyOps (e.g. "Shell Plugin"), which setup normally omits. |
 | `--marketplace` | Include Marketplace Plugins, which setup normally omits. |
 | `--force` | Allow generated files to overwrite existing destinations. |
