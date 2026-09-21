@@ -258,7 +258,7 @@ Every sync and setup command uses a built-in host-local PID lock keyed by `base_
 
 **Saved defaults**
 
-Put sync defaults under a `sync` object in `/etc/xyops/cli.json` or `~/.config/xyops/cli.json`:
+Put sync defaults under a `sync` object in the machine or user configuration file. These are `/etc/xyops/cli.json` and `~/.config/xyops/cli.json` on Unix and macOS, or `%PROGRAMDATA%\xyops\cli.json` and `%USERPROFILE%\.config\xyops\cli.json` on Windows:
 
 ```json
 {
@@ -341,7 +341,7 @@ Type `.exit` or hit `Ctrl-C` to exit.
 
 ## config
 
-View the effective CLI configuration or save one or more user settings. API keys are masked when displayed, and updated values are written to `~/.config/xyops/cli.json`.
+View the effective CLI configuration or save one or more user settings. API keys are masked when displayed. Updated values are written to `~/.config/xyops/cli.json` on Unix and macOS, or `%USERPROFILE%\.config\xyops\cli.json` on Windows.
 
 ```sh
 xy config
@@ -353,7 +353,7 @@ xy config --base_url http://localhost:5522 --api_key YOUR_API_KEY
 
 Updates load the user file separately and apply only the settings specified on the command line, preserving other user settings. System settings and environment overrides are not copied into the file. If the user file does not exist, it is created with only the supplied settings.
 
-Configuration loads `/etc/xyops/cli.json` first, then `~/.config/xyops/cli.json`, then `XYOPS_`-prefixed environment variables. Later sources override matching top-level settings. Environment overrides still take precedence over saved user settings. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
+Configuration loads the machine file first, then the user file, then `XYOPS_`-prefixed environment variables. The machine and user files are `/etc/xyops/cli.json` and `~/.config/xyops/cli.json` on Unix and macOS, or `%PROGRAMDATA%\xyops\cli.json` and `%USERPROFILE%\.config\xyops\cli.json` on Windows. Later sources override matching top-level settings. Environment overrides still take precedence over saved user settings. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
 
 ## doc
 

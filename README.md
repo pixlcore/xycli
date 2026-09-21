@@ -49,7 +49,7 @@ Save your xyOps URL and API Key:
 xy config --base_url https://xyops.example.com --api_key YOUR_API_KEY
 ```
 
-Use the base URL of your xyOps instance, without the `/api` endpoint suffix. The command creates `~/.config/xyops/cli.json` and saves the settings there.
+Use the base URL of your xyOps instance, without the `/api` endpoint suffix. On Unix and macOS, the command creates `~/.config/xyops/cli.json`. On Windows, it creates `%USERPROFILE%\.config\xyops\cli.json`.
 
 Now check your connection:
 
@@ -63,11 +63,11 @@ You should see the dashboard. If you need to set up xyOps itself, start with its
 
 xyCLI loads optional JSON configuration files on every invocation, then applies environment variables. Settings are merged in this order:
 
-| Order | Source | Purpose |
-| --- | --- | --- |
-| 1 | `/etc/xyops/cli.json` | Shared settings for the machine. |
-| 2 | `~/.config/xyops/cli.json` | Settings for your user account, overriding matching system settings. |
-| 3 | `XYOPS_` environment variables | Overrides for the current shell or command. |
+| Order | Unix and macOS | Windows | Purpose |
+| --- | --- | --- | --- |
+| 1 | `/etc/xyops/cli.json` | `%PROGRAMDATA%\xyops\cli.json` | Shared settings for the machine. |
+| 2 | `~/.config/xyops/cli.json` | `%USERPROFILE%\.config\xyops\cli.json` | Settings for your user account, overriding matching system settings. |
+| 3 | `XYOPS_` environment variables | `XYOPS_` environment variables | Overrides for the current shell or command. |
 
 Neither file is required if you supply your connection settings through the environment. Missing files are skipped; files you create must contain valid JSON. Matching top-level properties are replaced by later sources, so a user-level object such as `sync` replaces the system-level object of the same name.
 
@@ -92,7 +92,7 @@ xy config --suggest false
 xy config --color false
 ```
 
-`xy config` masks your API Key when displaying it. Updates load the **user configuration file** separately, apply only the settings specified on the command line, and save it with owner-only read/write permissions. Other user settings are preserved; settings inherited from the system file or environment are not copied into the user file. If the user file does not exist, it is created with only the settings you supply. Environment overrides still take precedence on the next invocation.
+`xy config` masks your API Key when displaying it. Updates load the **user configuration file** separately, apply only the settings specified on the command line, and save it with owner-only read/write permissions on Unix and macOS. On Windows, the file inherits the access controls of your user profile because Windows does not implement Unix permission modes. Other user settings are preserved; settings inherited from the system file or environment are not copied into the user file. If the user file does not exist, it is created with only the settings you supply. Environment overrides still take precedence on the next invocation.
 
 Every `XYOPS_` variable maps to a lowercase configuration key. For example, `XYOPS_BASE_URL` sets `base_url` and `XYOPS_ITEMS_PER_PAGE` sets `items_per_page`. Literal `true` and `false` become booleans, and numeric strings become numbers.
 
@@ -101,6 +101,14 @@ Use environment variables for a temporary connection or a shell script:
 ```sh
 export XYOPS_BASE_URL="https://xyops.example.com"
 export XYOPS_API_KEY="YOUR_API_KEY"
+xy
+```
+
+In Windows PowerShell, use the equivalent environment syntax:
+
+```powershell
+$env:XYOPS_BASE_URL = "https://xyops.example.com"
+$env:XYOPS_API_KEY = "YOUR_API_KEY"
 xy
 ```
 

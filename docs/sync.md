@@ -308,7 +308,7 @@ After changes begin, individual API or write failures are logged and the engine 
 
 ### Save defaults in a CLI config file
 
-Put a `sync` object in `/etc/xyops/cli.json` for machine or service defaults, or `~/.config/xyops/cli.json` for your own user account:
+Put a `sync` object in the machine configuration file for machine or service defaults, or the user configuration file for your own account. These are `/etc/xyops/cli.json` and `~/.config/xyops/cli.json` on Unix and macOS, or `%PROGRAMDATA%\xyops\cli.json` and `%USERPROFILE%\.config\xyops\cli.json` on Windows:
 
 ```json
 {

@@ -13,14 +13,14 @@ var debug = (process.argv[2] == 'debug');
 process.chdir( Path.dirname( __dirname ) );
 
 // make sure git sandbox is clean
-var porcelain = cp.execSync('git status --porcelain', { encoding: 'utf8' }).trim();
+var porcelain = cp.execSync('git status --porcelain', { encoding: 'utf8', windowsHide: true }).trim();
 if (!debug && porcelain.length) {
 	console.error("\nERROR: Git sandbox has local changes.  Please commit these before updating the changelog.\n");
 	process.exit(1);
 }
 
 // get list of tags
-var tags = cp.execSync('git tag --list --sort=version:refname', { encoding: 'utf8' }).trim().split(/\n/).reverse();
+var tags = cp.execSync('git tag --list --sort=version:refname', { encoding: 'utf8', windowsHide: true }).trim().split(/\n/).reverse();
 
 var md = '';
 md += "# xyCLI Changelog\n";
@@ -36,7 +36,7 @@ tags.forEach( function(tag, idx) {
 	md += `\n## Version ${tag}\n\n`;
 	
 	var cmd = `git log ${prev_tag}..${tag} --no-merges --pretty=format:'%h %H %ad %s%n%n%b%n----PX----' --date=short`;
-	var output = cp.execSync(cmd, { encoding: 'utf8' }).trim();
+	var output = cp.execSync(cmd, { encoding: 'utf8', windowsHide: true }).trim();
 	var commits = output.split('----PX----');
 	var first = true;
 	
@@ -77,10 +77,10 @@ if (debug) {
 fs.writeFileSync( 'CHANGELOG.md', md );
 
 // make sure log has actually changed
-porcelain = cp.execSync('git status --porcelain', { encoding: 'utf8' }).trim();
+porcelain = cp.execSync('git status --porcelain', { encoding: 'utf8', windowsHide: true }).trim();
 if (!porcelain.length) {
 	console.error("\nWarning: Changelog has not changed since last run.  Skipping actions.\n");
 	process.exit(1);
 }
 
-cp.execSync('git add CHANGELOG.md && git commit -m "Update CHANGELOG" && git push', { stdio: 'inherit' } );
+cp.execSync('git add CHANGELOG.md && git commit -m "Update CHANGELOG" && git push', { stdio: 'inherit', windowsHide: true } );

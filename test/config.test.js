@@ -4,12 +4,25 @@ const fs = require('node:fs');
 const os = require('node:os');
 const Path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const config = require('../lib/config.js');
+
+function assertPrivateMode(file) {
+	// Windows permissions are represented by ACLs, not Unix owner/group/other
+	// mode bits.  The file still has to exist, but an exact 0600 assertion only
+	// describes the Unix behavior that fs.chmodSync can enforce.
+	assert.equal(fs.existsSync(file), true);
+	if (process.platform != 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+}
 
 function createConfigFixture(t, initial) {
 	// Give each CLI process a disposable home directory.  Config commands exit
 	// before contacting xyOps, so these checks need no development server.
 	const home_dir = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-config-'));
-	t.after(() => fs.rmSync(home_dir, { recursive: true, force: true }));
+	const program_data = fs.mkdtempSync(Path.join(os.tmpdir(), 'xycli-program-data-'));
+	t.after(() => {
+		fs.rmSync(home_dir, { recursive: true, force: true });
+		fs.rmSync(program_data, { recursive: true, force: true });
+	});
 	const file = Path.join(home_dir, '.config', 'xyops', 'cli.json');
 	
 	if (initial) {
@@ -20,17 +33,26 @@ function createConfigFixture(t, initial) {
 	return {
 		file,
 		run(args) {
+			const env = {
+				...process.env,
+				HOME: home_dir,
+				USERPROFILE: home_dir,
+				ProgramData: program_data,
+				XYOPS_API_KEY: 'fixture-key',
+				XYOPS_BASE_URL: 'https://fixture.invalid',
+				XYOPS_ITEMS_PER_PAGE: '99',
+				XYOPS_COLOR: 'false'
+			};
+			
+			// Prove the Windows code path does not receive a compatibility HOME
+			// variable from Git Bash, WSL, or the parent test environment.
+			if (process.platform == 'win32') delete env.HOME;
+			
 			const result = spawnSync(process.execPath, [Path.join(__dirname, '..', 'index.js'), 'config', ...args], {
 				encoding: 'utf8',
 				timeout: 10000,
-				env: {
-					...process.env,
-					HOME: home_dir,
-					XYOPS_API_KEY: 'fixture-key',
-					XYOPS_BASE_URL: 'https://fixture.invalid',
-					XYOPS_ITEMS_PER_PAGE: '99',
-					XYOPS_COLOR: 'false'
-				}
+				windowsHide: true,
+				env
 			});
 			
 			// Keep captured CLI output out of assertion messages, since a config
@@ -42,6 +64,24 @@ function createConfigFixture(t, initial) {
 		read() { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 	};
 }
+
+test('config resolves native Unix and Windows source paths', () => {
+	assert.deepEqual(config.getConfigFiles('linux', {}, '/home/nick'), [
+		'/etc/xyops/cli.json',
+		'/home/nick/.config/xyops/cli.json'
+	]);
+	assert.deepEqual(config.getConfigFiles('win32', { ProgramData: 'C:\\ProgramData' }, 'C:\\Users\\Nick'), [
+		'C:\\ProgramData\\xyops\\cli.json',
+		'C:\\Users\\Nick\\.config\\xyops\\cli.json'
+	]);
+	assert.deepEqual(config.getConfigFiles('win32', { ALLUSERSPROFILE: 'D:\\SharedData' }, 'C:\\Users\\Nick'), [
+		'D:\\SharedData\\xyops\\cli.json',
+		'C:\\Users\\Nick\\.config\\xyops\\cli.json'
+	]);
+	assert.deepEqual(config.getConfigFiles('win32', {}, 'C:\\Users\\Nick'), [
+		'C:\\Users\\Nick\\.config\\xyops\\cli.json'
+	]);
+});
 
 test('config updates only requested user settings without saving inherited overrides', t => {
 	const fixture = createConfigFixture(t, {
@@ -61,7 +101,7 @@ test('config updates only requested user settings without saving inherited overr
 		suggest: true,
 		sync: { up: ['events'], down: false }
 	});
-	assert.equal(fs.statSync(fixture.file).mode & 0o777, 0o600);
+	assertPrivateMode(fixture.file);
 });
 
 test('config creates a missing user file with only supplied settings', t => {
@@ -69,7 +109,7 @@ test('config creates a missing user file with only supplied settings', t => {
 	fixture.run(['--items_per_page', '25']);
 	
 	assert.deepEqual(fixture.read(), { items_per_page: 25 });
-	assert.equal(fs.statSync(fixture.file).mode & 0o777, 0o600);
+	assertPrivateMode(fixture.file);
 });
 
 test('config dotted updates preserve sibling user settings and explicit false or zero values', t => {

@@ -104,7 +104,8 @@ function runSync(t, options) {
 	})], {
 		cwd: Path.join(__dirname, '..'),
 		encoding: 'utf8',
-		timeout: 10000
+		timeout: 10000,
+		windowsHide: true
 	});
 	assert.ifError(result.error);
 	assert.equal(result.signal, null);
@@ -659,7 +660,8 @@ test('sync PID lock rejects an overlapping run and cleans up afterward', async t
 	`;
 	const holder = spawn(process.execPath, ['-e', holderScript, lockFile], {
 		cwd: Path.join(__dirname, '..'),
-		stdio: ['ignore', 'pipe', 'pipe']
+		stdio: ['ignore', 'pipe', 'pipe'],
+		windowsHide: true
 	});
 	
 	await new Promise((resolve, reject) => {

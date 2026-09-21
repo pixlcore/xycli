@@ -30,7 +30,8 @@ else {
 		// suite does not prevent the remaining suites from running and reporting.
 		const child = spawn(process.execPath, ['--test', '--test-concurrency=1', ...files], {
 			cwd: __dirname,
-			stdio: 'inherit'
+			stdio: 'inherit',
+			windowsHide: true
 		});
 		
 		child.on('error', error => {

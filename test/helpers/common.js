@@ -59,6 +59,7 @@ function runCLI(args, options = {}) {
 		timeout: 30000,
 		maxBuffer: 16 * 1024 * 1024,
 		input: options.input,
+		windowsHide: true,
 		env: {
 			...process.env,
 			XYOPS_COLOR: 'false',
