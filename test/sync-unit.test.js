@@ -13,7 +13,7 @@ const script = `
 	const cli = require('pixl-cli');
 	cli.global();
 	const options = JSON.parse(process.argv[1]);
-	cli.args.quiet = true;
+	cli.args.quiet = options.quiet !== false;
 	const sync = require('./lib/sync.js');
 	if (options.setupCwd) process.chdir(options.setupCwd);
 	const calls = [];
@@ -373,10 +373,12 @@ test('sync setup new dry run discovers additions without writing them', t => {
 });
 
 test('sync setup new preserves existing Events and writes new workflows separately', t => {
-	const existing = { id: 'existing-event', title: 'Existing Event', type: 'event' };
-	const workflow = { id: 'new-workflow', title: 'New Workflow', type: 'workflow' };
+	const category = { id: 'operations', title: 'Operations Team' };
+	const existing = { id: 'existing-event', title: 'Existing Event', type: 'event', category: category.id };
+	const workflow = { id: 'new-workflow', title: 'New Workflow', type: 'workflow', category: category.id };
 	const result = runSync(t, {
 		setup: ['events'],
+		categories: [category],
 		events: [existing, workflow],
 		existingSources: [{ path: 'custom/Event.json', type: 'event', data: existing }],
 		args: { new: true }
@@ -384,7 +386,63 @@ test('sync setup new preserves existing Events and writes new workflows separate
 	
 	assert.equal(result.status, 0);
 	assert.equal(fs.existsSync(Path.join(result.dir, 'events')), false);
-	assert.equal(fs.existsSync(Path.join(result.dir, 'workflows', 'New-Workflow.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'workflows', 'Operations-Team', 'New-Workflow.json')), true);
+});
+
+test('sync setup groups Events and workflows into Category folders', t => {
+	const operations = { id: 'operations', title: 'Operations Team' };
+	const limited = { id: 'limited', title: 'Limited Run' };
+	const engineering = { id: 'engineering', title: 'Engineering & QA' };
+	const result = runSync(t, {
+		setup: ['events'],
+		categories: [operations, limited, engineering],
+		events: [
+			{ id: 'nightly', title: 'Nightly Backup', type: 'event', category: operations.id, params: { script: '#!/bin/sh\necho backup\n' } },
+			{ id: 'limited', title: 'Limited Event', type: 'event', category: limited.id },
+			{ id: 'release', title: 'Release Pipeline', type: 'workflow', category: engineering.id },
+			{ id: 'ondemand', title: 'On Demand Backup', type: 'event', category: operations.id }
+		],
+		args: { file_props: 'params.script' },
+		quiet: false
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events', 'Operations-Team', 'Nightly-Backup.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events', 'Operations-Team', 'Nightly-Backup-params.script.sh')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events', 'Operations-Team', 'On-Demand-Backup.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events', 'Limited-Run', 'Limited-Event.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'workflows', 'Engineering-QA', 'Release-Pipeline.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events', 'Nightly-Backup.json')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'workflows', 'Release-Pipeline.json')), false);
+	
+	// The source order deliberately returns to Operations after Limited Run.
+	// Its two Events must still print beneath one folder heading.
+	const operationsHeader = result.stdout.indexOf('events/Operations-Team/');
+	const nightlyFile = result.stdout.indexOf('Nightly-Backup.json');
+	const onDemandFile = result.stdout.indexOf('On-Demand-Backup.json');
+	const limitedHeader = result.stdout.indexOf('events/Limited-Run/');
+	const limitedFile = result.stdout.indexOf('Limited-Event.json');
+	const workflowHeader = result.stdout.indexOf('workflows/Engineering-QA/');
+	assert.ok(operationsHeader < nightlyFile);
+	assert.ok(nightlyFile < onDemandFile);
+	assert.ok(onDemandFile < limitedHeader);
+	assert.ok(limitedHeader < limitedFile);
+	assert.ok(limitedFile < workflowHeader);
+	assert.equal(result.stdout.indexOf('events/Operations-Team/', operationsHeader + 1), -1);
+});
+
+test('sync setup validates all Event Categories before writing any files', t => {
+	const result = runSync(t, {
+		setup: ['plugins', 'events'],
+		plugins: [{ id: 'plugin', title: 'Plugin', script: 'Hello\n' }],
+		events: [{ id: 'orphan', title: 'Orphan Event', type: 'event', category: 'missing' }],
+		args: {}
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /Cannot find Category for Event: Orphan Event \(missing\)/);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events')), false);
 });
 
 test('sync setup new rejects overwrite mode and malformed values before writing', t => {

@@ -171,8 +171,9 @@ test('sync', async t => {
 		const categoryExport = Path.join(temp, 'categories', slugify(categoryTitle) + '.json');
 		const pluginExport = Path.join(temp, 'plugins', slugify(pluginTitle) + '.json');
 		const pluginScriptExport = Path.join(temp, 'plugins', slugify(pluginTitle) + '-script.js');
-		const eventExport = Path.join(temp, 'events', slugify(eventTitle) + '.json');
-		const eventScriptExport = Path.join(temp, 'events', slugify(eventTitle) + '-params.script.sh');
+		const eventDir = Path.join(temp, 'events', slugify(categoryTitle));
+		const eventExport = Path.join(eventDir, slugify(eventTitle) + '.json');
+		const eventScriptExport = Path.join(eventDir, slugify(eventTitle) + '-params.script.sh');
 		
 		await check('setup writes valid XYPDF and external property files', () => {
 			const category = readXYPDF(categoryExport);

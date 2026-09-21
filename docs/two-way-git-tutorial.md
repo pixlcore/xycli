@@ -65,7 +65,7 @@ cd /srv/xyops-automation
 xy sync setup events --file_props script,params.script --default_ext ps1 --dry
 ```
 
-The `events` selection includes both Events and workflows. Setup places workflows in their own `workflows/` directory for convenience.
+The `events` selection includes both Events and workflows. Setup places workflows in their own `workflows/` directory, then groups Events and workflows into subfolders named after their Categories.
 
 `--file_props script,params.script` extracts common Plugin and Event script properties into neighboring files. If your Plugin uses another property, add its dot path to the list. For example, use `script,params.script,params.command` when an Event stores its PowerShell source in `params.command`.
 
@@ -241,7 +241,7 @@ git push
 
 The next scheduled pass pulls the commit and uploads newer local definitions to xyOps. If someone edits an existing Event in the xyOps web interface, the next pass downloads the newer definition, and `--down_cmd` commits and pushes the changed files.
 
-When someone creates a new Event in xyOps, the ordinary sync pass does not know where to create its local source. The following `sync setup events --new` pass discovers it, creates the suggested files, then commits and pushes them through its own `--down_cmd`.
+When someone creates a new Event in xyOps, the ordinary sync pass does not know where to create its local source. The following `sync setup events --new` pass discovers it, creates the suggested files in its Category folder, then commits and pushes them through its own `--down_cmd`.
 
 `--new` is additive. It does not overwrite existing sources, and it matches existing definitions by type and exact ID rather than filename. This preserves renamed files and custom folder layouts.
 

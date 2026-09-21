@@ -113,18 +113,20 @@ xyops-automation/
     categories/
         Backups.json
     events/
-        Nightly-Backup.json
-        Nightly-Backup-params.script.sh
+        Operations/
+            Nightly-Backup.json
+            Nightly-Backup-params.script.sh
     plugins/
         Custom-Runner.json
         Custom-Runner-script.js
     workflows/
-        Release-Pipeline.json
+        Deployments/
+            Release-Pipeline.json
 ```
 
-Setup creates one folder per selected resource type and one JSON file per definition. Event and workflow exports are separated into `events/` and `workflows/`. Both participate in normal sync through the `events` selection.
+Setup creates one folder per selected resource type and one JSON file per definition. Event and workflow exports are separated into `events/` and `workflows/`, then grouped into subfolders using their Category titles. Both participate in normal sync through the `events` selection.
 
-Filenames come from each definition's title: sequences of non-word characters become hyphens, and leading or trailing hyphens are removed. For example, `Nightly Backup` becomes `Nightly-Backup.json`. Different titles can produce the same filename, so review the preview for collisions.
+Folder and filenames come from Category and definition titles: sequences of non-word characters become hyphens, and leading or trailing hyphens are removed. For example, the Event `Nightly Backup` in the `Operations` Category becomes `events/Operations/Nightly-Backup.json`. Different titles can produce the same path, so review the preview for collisions. Setup stops before writing anything if an Event or workflow selected for export refers to a Category that is not present in xyOps.
 
 ### 4. Review and version the tree
 
@@ -166,7 +168,7 @@ xy sync setup events plugins categories --new --file_props script,params.script 
 xy sync setup events plugins categories --new --file_props script,params.script
 ```
 
-New-only setup scans the current directory recursively and indexes existing XYPDF sources by item type and exact ID. Renamed files and custom folders are preserved. Remote definitions not found in that index are written to setup's normal type folders; existing definitions are skipped without being rewritten. Malformed, duplicate, unsupported, or locally orphaned sources stop the operation before new files are written. `--new` cannot be combined with `--force`.
+New-only setup scans the current directory recursively and indexes existing XYPDF sources by item type and exact ID. Renamed files and custom folders are preserved. Remote definitions not found in that index are written to setup's normal type and Category folders; existing definitions are skipped without being rewritten. Malformed, duplicate, unsupported, or locally orphaned sources stop the operation before new files are written. `--new` cannot be combined with `--force`.
 
 This is an additive local export. It does not create definitions in xyOps, and ordinary upsync or downsync still updates only definitions that already exist on both sides.
 

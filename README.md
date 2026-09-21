@@ -484,7 +484,7 @@ cd xyops-automation
 xy sync setup events plugins categories --file_props script,params.script
 ```
 
-Setup creates one file per definition and can extract scripts into adjacent source files. You choose how to organize the tree afterward; sync scans subdirectories and matches definitions by resource type and exact ID.
+Setup creates one file per definition and can extract scripts into adjacent source files. Events and workflows are automatically grouped into subfolders named after their Categories. You can reorganize the tree afterward; sync scans subdirectories and matches definitions by resource type and exact ID.
 
 Preview a push or pull, then apply the direction you want:
 
