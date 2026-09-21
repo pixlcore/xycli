@@ -26,6 +26,7 @@ Browse the [screenshot gallery](docs/screenshots.md) for more views, or jump to 
 - [Configuration](#configuration)
 - [Global CLI switches](#global-cli-switches)
 - [Tutorial: your first Event, job, and Web Hook](docs/tutorial.md)
+- [Tutorial: two-way sync with Git](docs/two-way-git-tutorial.md)
 - [Explore and manage xyOps](#explore-and-manage-xyops)
 - [Transfer data between systems](#transfer-data-between-systems)
 - [Sync your automation with local files](#sync-your-automation-with-local-files)
@@ -499,6 +500,8 @@ Sync supports Alerts, API Keys, Categories, Channels, Events and workflows, Grou
 
 Delete mode is for up-sync only: it removes eligible xyOps objects missing from your local inventory. Objects with a `stock` or `marketplace` property are always protected from deletion and need no local files. Keep a complete inventory of the other objects you intend to retain for each selected type, and review a dry run before applying it. Sync applies changes without a confirmation step unless you use `--dry`.
 
+Follow the [Two-Way Git Sync Tutorial](docs/two-way-git-tutorial.md) to connect one persistent checkout to a shared repository, commit downloaded changes, discover new Events, and schedule the complete workflow with cron or xySat.
+
 Read the dedicated [Sync Guide](docs/sync.md) for setup, file layouts, every option, saved defaults, two-way sync, deletion, notifications, and automation with cron, Git hooks, and GitHub Actions.
 
 - **Command reference:** [Sync commands](docs/help.md#sync) and [Sync setup](docs/help.md#sync-setup).
@@ -540,4 +543,4 @@ xy api runEvent --id EVENT_ID --params.example VALUE --dry
 xy api updateEvent --json @./request.json --dry
 ```
 
-The examples with `--dry` display the request without calling the API. Many resource views also accept `--format json` to display their data as JSON. See the [xyOps API Reference](https://docs.xyops.io/api), [API command](docs/help.md#api), and [documentation command](docs/help.md#doc) for more.
+The examples with `--dry` display the request without calling the API. Many resource views also accept `--format json` to display their data as JSON. See the [xyOps API Reference](https://docs.xyops.io/#Docs/api), [API command](docs/help.md#api), and [documentation command](docs/help.md#doc) for more.

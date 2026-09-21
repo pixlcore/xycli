@@ -112,6 +112,13 @@ function runSync(t, options) {
 	return { ...result, report, dir };
 }
 
+function getSetupMarkerCommand(filename) {
+	// Use the current Node.js binary so the completion-command fixture is
+	// portable and does not depend on a separate shell utility being installed.
+	const code = `require('node:fs').writeFileSync(${JSON.stringify(filename)}, process.cwd())`;
+	return `${JSON.stringify(process.execPath)} -e ${JSON.stringify(code)}`;
+}
+
 test('sync update guard requires confirmation only for the exact managed object', async () => {
 	var warnings = [];
 	var loads = 0;
@@ -287,6 +294,69 @@ test('sync setup new exports only remote definitions missing from the local tree
 	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin-script.ps1')), true);
 	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Existing.json')), false);
 	assert.equal(fs.existsSync(Path.join(result.dir, 'custom', 'layout', 'Renamed-Existing.json')), true);
+});
+
+test('sync setup runs down_cmd after writing files from the setup directory', t => {
+	const marker = 'setup-complete.txt';
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [{ id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+		args: {
+			file_props: 'script',
+			down_cmd: getSetupMarkerCommand(marker)
+		}
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.readFileSync(Path.join(result.dir, marker), 'utf8'), fs.realpathSync(result.dir));
+});
+
+test('sync setup new runs down_cmd only when it writes new files', t => {
+	const existing = { id: 'existing', title: 'Existing', command: 'node', script: 'Existing\n' };
+	const marker = 'setup-new-complete.txt';
+	const command = getSetupMarkerCommand(marker);
+	const added = runSync(t, {
+		setup: ['plugins'],
+		plugins: [existing, { id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+		existingSources: [{ path: 'Existing.json', type: 'plugin', data: existing }],
+		args: { new: true, down_cmd: command }
+	});
+	
+	assert.equal(added.status, 0);
+	assert.equal(fs.existsSync(Path.join(added.dir, marker)), true);
+	
+	const unchanged = runSync(t, {
+		setup: ['plugins'],
+		plugins: [existing],
+		existingSources: [{ path: 'Existing.json', type: 'plugin', data: existing }],
+		args: { new: true, down_cmd: command }
+	});
+	
+	assert.equal(unchanged.status, 0);
+	assert.equal(fs.existsSync(Path.join(unchanged.dir, marker)), false);
+});
+
+test('sync setup does not run down_cmd during a dry run', t => {
+	const marker = 'setup-dry-complete.txt';
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [{ id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+		args: { dry: true, down_cmd: getSetupMarkerCommand(marker) }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.existsSync(Path.join(result.dir, marker)), false);
+});
+
+test('sync setup completion-command errors exit nonzero', t => {
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [{ id: 'added', title: 'Added', command: 'node', script: 'Added\n' }],
+		args: { down_cmd: `${JSON.stringify(process.execPath)} -e "process.exit(2)"` }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.errors[0], /Command failed/);
 });
 
 test('sync setup new dry run discovers additions without writing them', t => {

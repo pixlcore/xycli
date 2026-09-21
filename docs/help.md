@@ -283,6 +283,7 @@ xy sync setup events plugins categories --dry
 xy sync setup events plugins categories --file_props script,params.script
 xy sync setup events --file_props params.script --default_ext ps1
 xy sync setup events plugins --new
+xy sync setup events --new --down_cmd "./commit-downloads.sh"
 xy sync setup all
 xy sync setup all --stock --marketplace
 xy sync setup events plugins --force
@@ -296,6 +297,8 @@ Setup creates one folder per resource type and one XYPDF JSON file per object, u
 - `--file_props PATHS` extracts string properties into adjacent files.
 - `--default_ext EXT` sets the fallback neighbor extension instead of `txt`.
 - `--new` writes only remote definitions not already represented locally.
+- `--down_cmd COMMAND` runs after setup writes one or more definitions.
+- `--cmd_timeout SECONDS` changes the command timeout from 30 seconds.
 - `--stock` includes stock objects, which are omitted by default.
 - `--marketplace` includes Marketplace objects, which are omitted by default.
 - `--force` allows generated files to overwrite existing destinations.
@@ -304,6 +307,8 @@ Setup creates one folder per resource type and one XYPDF JSON file per object, u
 For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically. Setup chooses extensions from executable commands, shebangs, and JSON content when possible. Use `--default_ext ps1` (or `--default_ext .ps1`) to replace the `.txt` fallback for properties whose type cannot be detected. The override does not replace an extension that setup successfully detects.
 
 Use `--new` from the root of an existing sync tree to add definitions that exist in xyOps but have no local source. Setup scans recursively and matches existing sources by item type and exact ID, so renamed files and custom folder layouts are preserved. New definitions use the normal suggested type folders and filenames. Malformed, duplicate, unsupported, or orphaned local sources stop the operation before any new files are written. `--new` cannot be combined with `--force`, and it does not create new definitions in xyOps.
+
+An explicitly supplied `--down_cmd` runs from the current setup directory after at least one definition is written. It does not run when `--new` finds nothing or during a dry run. Saved sync completion commands are not inherited by setup.
 
 Without `--force`, ordinary setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, verify that every object eligible for deletion that you intend to keep has a source file. Stock and Marketplace objects are protected from deletion and may be omitted.
 

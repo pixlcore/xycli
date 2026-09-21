@@ -408,12 +408,14 @@ At least one direction must be enabled. The command is a single run, not a backg
 | `--file_props PATHS` | Extract string properties into adjacent neighbor files. Accepts comma-separated dot paths or a JSON array. |
 | `--default_ext EXT` | Use this extension instead of `txt` when a neighbor's type cannot be detected. A leading dot is optional. |
 | `--new` | Export only remote definitions whose type and ID are not already present in the current local tree. |
+| `--down_cmd COMMAND` | Run a local shell command after setup writes one or more definitions. |
+| `--cmd_timeout SECONDS` | Set the setup completion-command timeout in seconds. The default is `30`. |
 | `--stock` | Include stock definitions that ships wit xyOps (e.g. "Shell Plugin"), which setup normally omits. |
 | `--marketplace` | Include Marketplace Plugins, which setup normally omits. |
 | `--force` | Allow generated files to overwrite existing destinations. |
 | `--dry` | Preview setup's output without creating folders or files. |
 
-Workflow defaults in the `sync` configuration object are not used by setup. Pass setup choices explicitly on the command line. The common `lock_file` setting still applies so setup cannot overlap another sync operation for the same instance.
+Workflow defaults in the `sync` configuration object are not used by setup. Pass setup choices explicitly on the command line. An explicitly supplied `down_cmd` runs from the current setup directory only after real files are written, so it does not run during a dry run or when `--new` finds nothing. The common `lock_file` setting still applies so setup cannot overlap another sync operation for the same instance.
 
 ## Two-way sync and modification times
 
@@ -516,6 +518,7 @@ xy sync ./ --down events,plugins --down_cmd "./commit-downloads.sh" --cmd_timeou
 
 - `up_cmd` runs if at least one object was successfully upsynced (this includes deletes).
 - `down_cmd` runs if at least one object was successfully downsynced.
+- During setup, an explicitly supplied `down_cmd` runs if at least one definition was written.
 - If both apply, `up_cmd` runs first, then `down_cmd`.
 - Neither runs for an identical/no-op run, a scan that stopped before changes, or a dry run.
 - A completion command can run after partial success even if another item failed. It is not proof that the whole run succeeded.
@@ -913,7 +916,7 @@ Repository concurrency controls these workflow runs. Coordinate all writers to t
 | A script edit has no effect | Check the matching JSON stem, property suffix, filename extension, and property path. Hidden paths are skipped. |
 | Two-way sync overwrites an unexpected side | Compare the remote modification time with the newest JSON/property-file mtime. Fresh checkouts, clock skew, or touched files can make local sources appear newer. |
 | An Event or workflow does not execute | Sync saves definitions; it does not run them. Use `xy run EVENT_ID` separately. |
-| `down_cmd` does not run | It requires at least one successful download. A no-op, dry run, scan failure, or deletion alone does not trigger it. |
+| `down_cmd` does not run | Normal sync requires a successful download. Setup requires at least one written definition and an explicit `--down_cmd`. No-op and dry runs do not trigger it. |
 | A download commit launches another sync | Disable deployment Git hooks for commits made by `down_cmd`. The nested sync will otherwise be rejected by the built-in PID lock. |
 | Sync reports another PID is running | Another local sync owns the lock. Let it finish. If the PID is no longer alive, the next run recovers the stale file automatically. If the PID belongs to an unrelated recycled process, verify that no sync is active before removing the reported lock file. |
 | A scheduled run prints nothing | `--quiet` suppresses routine output and collected reports. Remove it to investigate and configure notifications. |
