@@ -1,5 +1,13 @@
 # xyCLI Changelog
 
+## Version v1.0.6
+
+> September 22, 2026
+
+- [`985c132`](https://github.com/pixlcore/xycli/commit/985c132607e1dcdabbadc829d6f21e599a2eb52b): Version 1.0.6
+- [`f0aac32`](https://github.com/pixlcore/xycli/commit/f0aac320cbd301a5dc45862edaec9f842c2c6c79): Feature: Add "xy upgrade" command.
+- [`a9b653b`](https://github.com/pixlcore/xycli/commit/a9b653b9649afd15d93cb3d29ee4f23da47bde0a): Bug Fix: Sync files with similar stems and neighbors can get mixed up.  Fixes #4.
+
 ## Version v1.0.5
 
 > September 21, 2026
