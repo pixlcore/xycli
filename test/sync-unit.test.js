@@ -583,6 +583,78 @@ test('a prefixed XYPDF source is never loaded as a property neighbor', t => {
 	assert.equal(result.report.requests.some(request => request.method === 'update_category'), false);
 });
 
+test('a property neighbor belongs to the longest matching XYPDF source stem', t => {
+	const shortCommand = 'Write-Host "Test Event"\n';
+	const longCommand = 'Write-Host "Test Event V2"\n';
+	const shortEvent = { id: 'short', title: 'Test Event', params: { command: shortCommand } };
+	const longEvent = { id: 'long', title: 'Test Event V2', params: { command: longCommand } };
+	const result = runSync(t, {
+		events: [shortEvent, longEvent],
+		existingSources: [
+			{
+				path: 'Test-Event.json',
+				type: 'event',
+				data: { ...shortEvent, params: { command: '(External)' } }
+			},
+			{
+				path: 'Test-Event-params.command.ps1',
+				contents: shortCommand
+			},
+			{
+				path: 'Test-Event-V2.json',
+				type: 'event',
+				data: { ...longEvent, params: { command: '(External)' } }
+			},
+			{
+				path: 'Test-Event-V2-params.command.ps1',
+				contents: longCommand
+			}
+		],
+		args: { up: 'events', dry: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(result.report.requests.some(request => request.method === 'update_event'), false);
+});
+
+test('property neighbor matching requires an exact source basename boundary', t => {
+	const singularCommand = 'Write-Host "Test Event"\n';
+	const pluralCommand = 'Write-Host "Test Events"\n';
+	const singularEvent = { id: 'singular', title: 'Test Event', params: { command: singularCommand } };
+	const pluralEvent = { id: 'plural', title: 'Test Events', params: { command: pluralCommand } };
+	const result = runSync(t, {
+		events: [singularEvent, pluralEvent],
+		existingSources: [
+			{
+				path: 'Test-Event.json',
+				type: 'event',
+				data: { ...singularEvent, params: { command: '(External)' } }
+			},
+			{
+				path: 'Test-Event-params.command.ps1',
+				contents: singularCommand
+			},
+			{
+				path: 'Test-Events.json',
+				type: 'event',
+				data: { ...pluralEvent, params: { command: '(External)' } }
+			},
+			{
+				path: 'Test-Events-params.command.ps1',
+				contents: pluralCommand
+			}
+		],
+		args: { up: 'events', dry: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(result.report.requests.some(request => request.method === 'update_event'), false);
+});
+
 test('a property neighbor must resolve to an existing string property', t => {
 	const category = { id: 'fixture', title: 'Fixture', notes: '' };
 	const result = runSync(t, {
