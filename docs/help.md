@@ -24,6 +24,7 @@ xy tags
 xy tickets
 xy hooks
 xy marketplace
+xy upgrade
 xy event EVENT_ID --export event.json
 xy import event.json
 xy sync ./ --up events,plugins --dry
@@ -95,6 +96,7 @@ xy help marketplace
 xy help marketplace search
 xy help marketplace get
 xy help marketplace install
+xy help upgrade
 xy help export
 xy help import
 xy help sync
@@ -311,6 +313,20 @@ Use `--new` from the root of an existing sync tree to add definitions that exist
 An explicitly supplied `--down_cmd` runs from the current setup directory after at least one definition is written. It does not run when `--new` finds nothing or during a dry run. Saved sync completion commands are not inherited by setup.
 
 Without `--force`, ordinary setup stops when an output file already exists. Files written before an error are not rolled back. Ensure object titles produce distinct filename slugs, especially when using `--force`, and back up any local edits before rerunning setup. For a delete-mode inventory, verify that every object eligible for deletion that you intend to keep has a source file. Stock and Marketplace objects are protected from deletion and may be omitted.
+
+## upgrade
+
+Check the installed xyCLI version against the latest version published to npm. This command is local and does not require an xyOps URL or API Key.
+
+```sh
+xy upgrade
+xy upgrade --confirm
+xy upgrade --confirm --dry
+```
+
+The command always displays the installed and latest versions. When an upgrade is available, add `--confirm` to install the exact version shown using npm. npm output is connected directly to the current terminal. A dry run prints the installation command without executing it.
+
+The command never downgrades xyCLI. If the installed version is newer than npm's `latest` version, it reports that status and exits without running npm. Global npm installations may require a user-writable npm prefix; the command does not invoke `sudo` or otherwise elevate privileges.
 
 ## api
 

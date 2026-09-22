@@ -18,6 +18,12 @@ test('help is available without server credentials', () => {
 	assert.match(output, /HELP: OVERVIEW/);
 });
 
+test('upgrade help is available without server credentials', () => {
+	const output = xy(['help', 'upgrade'], { env: offlineEnv });
+	assert.match(output, /HELP: UPGRADE/);
+	assert.match(output, /xy upgrade --confirm/);
+});
+
 test('help parses a document with Windows line endings', () => {
 	const output = xy(['help'], { env: offlineEnv, preload: crlfHelpPreload });
 	assert.match(output, /HELP: OVERVIEW/);

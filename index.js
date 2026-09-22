@@ -54,7 +54,7 @@ const JSON_ARG_EXCEPTIONS = ['body'];
 // Keep the public command inventory in one place, so typo suggestions and the
 // fallback help text always advertise the exact same top-level commands.
 const TOP_LEVEL_COMMANDS = [
-	'help', 'config', 'doc', 'dashboard', 'system', 'upcoming',
+	'help', 'config', 'upgrade', 'doc', 'dashboard', 'system', 'upcoming',
 	'alerts', 'alert', 'buckets', 'bucket', 'categories', 'category',
 	'channels', 'channel', 'events', 'event', 'run', 'groups', 'group',
 	'jobs', 'job', 'keys', 'key', 'log', 'monitors', 'monitor',
@@ -191,8 +191,9 @@ const app = {
 		
 		println( "\n " + cli.emoji('🚀') + " " + this.color('theme').bold("xyOps CLI ") + gray("v" + this.version) );
 		
-		// call config cmd early (before contacting xyops)
-		if (cmd == 'config') {
+		// Call local commands early, before requiring xyOps credentials or
+		// contacting the configured server. The upgrade command only contacts npm.
+		if ((cmd == 'config') || (cmd == 'upgrade')) {
 			await this['cmd_' + cmd]();
 			print("\n");
 			return;
@@ -428,6 +429,7 @@ const app = {
 
 Tools.mergeHashInto( app, require('./lib/utils.js') );
 Tools.mergeHashInto( app, require('./lib/config.js') );
+Tools.mergeHashInto( app, require('./lib/upgrade.js') );
 Tools.mergeHashInto( app, require('./lib/doc.js') );
 Tools.mergeHashInto( app, require('./lib/dashboard.js') );
 Tools.mergeHashInto( app, require('./lib/system.js') );

@@ -43,6 +43,13 @@ npm install -g @pixlcore/xycli
 
 This installs the `xy` command. In the xyOps web interface, open **API Keys** and create a key for the CLI. Choose privileges and resource access appropriate for the work you want to do. The [tutorial](docs/tutorial.md) needs access to view Events and servers, create and edit Events, run jobs, and create and test Web Hooks. System administration commands require a full administrator key.
 
+To check for a newer xyCLI release, use `xy upgrade`. The command displays the installed and latest npm versions without making any changes. Add `--confirm` to install the version shown.
+
+```sh
+xy upgrade
+xy upgrade --confirm
+```
+
 Save your xyOps URL and API Key:
 
 ```sh

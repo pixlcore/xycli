@@ -21,7 +21,7 @@
 	],
 	"scripts": {
 		"test": "node test.js",
-		"test:offline": "node --test test/config.test.js test/help.test.js test/markdown.test.js test/sync-unit.test.js test/toast.test.js test/utils-unit.test.js",
+		"test:offline": "node --test test/config.test.js test/help.test.js test/markdown.test.js test/sync-unit.test.js test/toast.test.js test/upgrade.test.js test/utils-unit.test.js",
 		"changelog": "node tools/changelog.js"
 	},
 	"dependencies": {
