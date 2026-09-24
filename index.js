@@ -39,6 +39,14 @@ Uncatch.on('uncaughtException', function(err) {
 	cli.progress.end();
 });
 
+cli.emoji = function(emoji) {
+	// override cli.emoji with our own TTY-aware version (FUTURE: Remove this patch after pixl-cli v1.1.7+)
+	// Draw the emoji, restore its starting cursor position, then explicitly move
+	// forward two cells.  This overrides each terminal's automatic cursor advance.
+	if (!cli.tty()) return emoji;
+	return '\u001b7' + emoji + '\u001b8\u001b[2C';
+};
+
 const { api } = require('@pixlcore/xyops-sdk');
 var highlight = require('cli-highlight').highlight;
 const Tools = cli.Tools;
