@@ -108,7 +108,7 @@ This considers both directions for every local Event and workflow source:
 - A newer xyOps definition is downloaded to its existing local file.
 - Identical definitions are left alone.
 
-The `--delete false` switch is intentional. Two-way sync does not propagate deletions safely. Delete an item deliberately on both sides, and keep deletion disabled in the scheduled command.
+The `--delete false` switch is intentional. Two-way sync does not propagate deletions. Keep deletion disabled in the scheduled command, and follow the [coordinated deletion steps](#delete-a-definition-from-both-sides) when retiring an item.
 
 Review the displayed diffs carefully. If the wrong side would win, check the clocks and file modification times before continuing.
 
@@ -245,6 +245,18 @@ When someone creates a new Event in xyOps, the ordinary sync pass does not know 
 
 `--new` is additive. It does not overwrite existing sources, and it matches existing definitions by type and exact ID rather than filename. This preserves renamed files and custom folder layouts.
 
+### Delete a definition from both sides
+
+Event and workflow deletions are usually infrequent, so it is practical to coordinate the xyOps and Git changes manually. Pause the scheduled script if you want to avoid a failed pass while you make both changes:
+
+1. Delete the definition in the xyOps web interface first.
+2. Remove its XYPDF JSON file and all neighboring property files from Git, then commit and push the deletion. Make sure the dedicated sync checkout receives that commit before its next sync pass.
+3. Resume the scheduled script and check its next run.
+
+If the script runs after the xyOps deletion but before the Git deletion reaches its checkout, ordinary sync reports a missing-object warning and exits with a failure status. It does not recreate the definition or process other changes. The script's `set -e` also prevents the following `sync setup --new` pass. Once the stale files are removed, the next run can proceed normally.
+
+Do not remove the Git files first. While the definition still exists in xyOps, `sync setup --new` can export it again and commit the files back to Git. This is a manual deletion procedure, not automatic two-way deletion. See the [Sync Guide](sync.md#remove-a-definition-during-two-way-sync) for the general behavior.
+
 ## Troubleshooting
 
 | Symptom | What to check |
@@ -255,7 +267,7 @@ When someone creates a new Event in xyOps, the ordinary sync pass does not know 
 | The wrong side wins a two-way conflict | Check NTP, the xyOps conductor clock, and the modification times of the JSON and neighboring files. A checkout, restore, or file copy can refresh local timestamps. |
 | A new Event is not exported | Confirm `sync setup events --new` runs from the repository root and that the API Key can see the Event. Add the correct property path if its script is stored somewhere other than `params.script`. |
 | A new Git file is not created in xyOps | Ordinary sync updates definitions that already exist on both sides. Create or import the definition into xyOps first, then let sync manage subsequent changes. |
-| A deleted item reappears or causes an error | Two-way deletion is not supported. Remove the local source and the xyOps definition deliberately as one coordinated operation. |
+| A deleted item reappears or causes an error | Follow the [coordinated deletion steps](#delete-a-definition-from-both-sides): delete in xyOps first, then remove and commit its local files. A leftover source stops sync until it is removed. |
 | A cron run is skipped | Another cron invocation may hold the `flock` lock. The lock file itself may remain when no lock is held, so check for a running sync process rather than treating the file as stale. |
 | A completion command times out | Increase `--cmd_timeout`, investigate Git network latency, and confirm that Git cannot wait for interactive input. |
 

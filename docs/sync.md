@@ -439,7 +439,19 @@ For each differing definition, the engine compares xyOps's `modified` timestamp 
 
 Two-way sync is experimental. Keep clocks synchronized, review dry runs, and preserve a history of both configuration and scripts. Git checkout, clone, restore, or file copying can give old content a new filesystem timestamp.
 
-For automatic two-way operation, use a persistent tree and run every minute. Both directions are considered on each run; you do not need separate alternating up and down jobs. Newly created definitions still need a setup export or individual local source, and remotely deleted definitions leave their old source files behind until you remove them.
+For automatic two-way operation, use a persistent tree and run every minute. Both directions are considered on each run; you do not need separate alternating up and down jobs. Newly created definitions still need a setup export or individual local source.
+
+### Remove a definition during two-way sync
+
+Two-way sync does not propagate deletions. Definition deletions are usually infrequent, so coordinating them manually is generally practical. Keep `--delete false` in the scheduled command, and remove a definition from both sides deliberately:
+
+1. Delete the definition in the xyOps web interface first.
+2. Remove its local XYPDF JSON file and any neighboring external property files. If the tree is stored in Git, commit and push their removal so the dedicated sync checkout receives the deletion.
+3. Run sync again, or resume the schedule, after the local files are gone. Pause the schedule during these steps if you want to avoid a failed pass between the two removals.
+
+If a sync runs after the xyOps deletion but before local cleanup, the leftover source produces a missing-object warning. The run exits with a failure status before updating or downloading any definitions, and a script that stops on failure will not reach a following `sync setup --new` step. The deleted definition is not recreated. Remove the stale files and retry.
+
+Do not remove the Git files first while the definition still exists in xyOps. A scheduled `sync setup --new` pass can export the still-existing definition back into the repository. See the [Two-Way Git Sync Tutorial](two-way-git-tutorial.md#delete-a-definition-from-both-sides) for the Git workflow.
 
 ## Remote-management warnings
 
