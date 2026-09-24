@@ -18,6 +18,7 @@ const script = `
 	if (options.setupCwd) process.chdir(options.setupCwd);
 	const calls = [];
 	const requests = [];
+	const apiOptions = [];
 	const app = {
 		...sync,
 		args: options.args,
@@ -41,9 +42,10 @@ const script = `
 		compareVersions() { return 0; },
 		async getMultiple() {},
 		die(message) { throw new Error(message); },
-		async callStandardAPI(method, data) {
+		async callStandardAPI(method, data, opts) {
 			calls.push(method);
 			requests.push({ method, data });
+			apiOptions.push({ method, opts });
 			if (options.failAPI === method) throw new Error('Fixture API failure');
 		}
 	};
@@ -51,7 +53,7 @@ const script = `
 		console.error(err.message);
 		process.exitCode = 1;
 	}).finally(() => {
-		console.log(JSON.stringify({ calls, requests, errors: app.errors || [], warnings: app.warnings || [] }));
+		console.log(JSON.stringify({ calls, requests, apiOptions, errors: app.errors || [], warnings: app.warnings || [] }));
 	});
 `;
 
@@ -223,6 +225,20 @@ test('sync errors exit nonzero even in quiet mode or a dry run', t => {
 		assert.equal(result.report.errors.length, 1);
 		assert.deepEqual(result.report.calls, []);
 	}
+});
+
+test('sync sends existing Plugin properties through the sync API path', t => {
+	const remote = { id: 'legacy', title: 'Legacy', type: 'event', command: 'node', cwd: '/opt/legacy', custom_field: { keep: true }, notes: 'Remote' };
+	const local = { ...remote, notes: 'Local' };
+	const result = runSync(t, {
+		plugins: [remote],
+		existingSources: [{ path: 'Legacy.json', type: 'plugin', data: local }],
+		args: { up: 'plugins' }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.requests.find(request => request.method === 'update_plugin').data, local);
+	assert.equal(result.report.apiOptions.find(call => call.method === 'update_plugin').opts.sync, true);
 });
 
 test('sync API errors preserve failure status while still sending both notifications', t => {
