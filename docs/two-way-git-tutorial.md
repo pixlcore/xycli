@@ -67,7 +67,7 @@ xy sync setup events --file_props script,params.script --default_ext ps1 --dry
 
 The `events` selection includes both Events and workflows. Setup places workflows in their own `workflows/` directory, then groups Events and workflows into subfolders named after their Categories.
 
-`--file_props script,params.script` extracts common Plugin and Event script properties into neighboring files. If your Plugin uses another property, add its dot path to the list. For example, use `script,params.script,params.command` when an Event stores its PowerShell source in `params.command`.
+`--file_props script,params.script` extracts common script properties into neighboring files. It also checks each workflow node automatically, so a node's `data.params.script` gets its own file named with that node's ID. If a property uses another path, add its dot path to the list. For example, use `script,params.script,params.command` when an Event stores its PowerShell source in `params.command`.
 
 The optional `--default_ext ps1` uses `.ps1` when setup cannot detect a neighbor file's language from an executable command, shebang, or JSON content. Remove it or choose another extension if PowerShell is not the appropriate fallback for your repository.
 

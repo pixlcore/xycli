@@ -96,7 +96,7 @@ Setup always writes below the current working directory. Type names after `setup
 xy sync setup events plugins categories --file_props script,params.script --dry
 ```
 
-The `--file_props` switch will externalize specific JSON property paths into individually named files, for easy editing.  This is great for storing Plugin scripts and Event shell scripts in separate files alongside the main JSON definition files.
+The `--file_props` switch will externalize specific JSON property paths into individually named files, for easy editing.  This is great for storing Plugin scripts, Event shell scripts, and workflow node scripts in separate files alongside the main JSON definition files.
 
 The preview lists the folders and files that would be written. `--dry` creates no directories or files.
 
@@ -122,6 +122,7 @@ xyops-automation/
     workflows/
         Deployments/
             Release-Pipeline.json
+            Release-Pipeline-workflow.nt3sr3y4.params.script.sh
 ```
 
 Setup creates one folder per selected resource type and one JSON file per definition. Event and workflow exports are separated into `events/` and `workflows/`, then grouped into subfolders using their Category titles. Both participate in normal sync through the `events` selection.
@@ -242,8 +243,11 @@ This extracts the selected content, if found, and moves it to a neighboring file
 | --- | --- | --- |
 | `My-Plugin.json` | `script` | `My-Plugin-script.js` |
 | `My-Event.json` | `params.script` | `My-Event-params.script.sh` |
+| `Release-Pipeline.json` | `workflow.nt3sr3y4.params.script` | `Release-Pipeline-workflow.nt3sr3y4.params.script.sh` |
 
 The general naming pattern is **`BASENAME-PROPERTY.EXT`**, in the same directory as `BASENAME.json`. Dot paths such as `params.script` identify nested properties. Setup chooses an extension from the executable command or a script's shebang when possible, falling back to JSON-looking content or `.txt`. Normal sync accepts your chosen extension.
+
+The same `--file_props script,params.script` selection checks every node in a workflow automatically. If a node has a nonempty string at `data.params.script`, setup writes a neighbor for that node and leaves `(External)` in the workflow JSON. In its filename, `workflow.NODE_ID.params.script` identifies the node by its ID and then reads `data.params.script`. No additional option is needed for workflow nodes.
 
 Use `--default_ext EXT` to replace the `.txt` fallback when setup cannot detect a type. For example, `--default_ext ps1` and `--default_ext .ps1` both produce `.ps1` neighbors. Detected interpreter and JSON extensions still take precedence. The fallback applies to every undetected property selected by that setup command, so group properties with the same expected file type or run setup separately when needed.
 

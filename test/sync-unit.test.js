@@ -432,6 +432,61 @@ test('sync setup groups Events and workflows into Category folders', t => {
 	assert.equal(result.stdout.indexOf('events/Operations-Team/', operationsHeader + 1), -1);
 });
 
+test('sync setup externalizes each matching workflow node parameter', t => {
+	const shellScript = '#!/bin/sh\necho first\n';
+	const nodeScript = '#!/usr/bin/env node\nconsole.log("second");\n';
+	const workflow = {
+		id: 'flow', title: 'Flow', type: 'workflow', category: 'operations',
+		workflow: { nodes: [
+			{ id: 'ntrigger1', type: 'trigger' },
+			{ id: 'nfirst01', type: 'event', data: { params: { script: shellScript } } },
+			{ id: 'nsecond1', type: 'job', data: { params: { script: nodeScript } } },
+			{ id: 'nempty001', type: 'job', data: { params: { script: '' } } }
+		] }
+	};
+	const result = runSync(t, {
+		setup: ['events'],
+		categories: [{ id: 'operations', title: 'Operations' }],
+		events: [workflow],
+		args: { file_props: 'params.script' }
+	});
+	const dir = Path.join(result.dir, 'workflows', 'Operations');
+	const source = JSON.parse(fs.readFileSync(Path.join(dir, 'Flow.json'), 'utf8')).items[0].data;
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(fs.readFileSync(Path.join(dir, 'Flow-workflow.nfirst01.params.script.sh'), 'utf8'), shellScript);
+	assert.equal(fs.readFileSync(Path.join(dir, 'Flow-workflow.nsecond1.params.script.js'), 'utf8'), nodeScript);
+	assert.equal(source.workflow.nodes[1].data.params.script, '(External)');
+	assert.equal(source.workflow.nodes[2].data.params.script, '(External)');
+	assert.equal(source.workflow.nodes[3].data.params.script, '');
+	assert.equal(fs.readdirSync(dir).length, 3, 'Empty and trigger nodes have no neighbor files');
+});
+
+test('sync setup accepts a shorthand path for one workflow node', t => {
+	const workflow = {
+		id: 'flow', title: 'Flow', type: 'workflow', category: 'operations',
+		workflow: { nodes: [
+			{ id: 'nfirst01', type: 'job', data: { params: { script: 'First\n' } } },
+			{ id: 'nsecond1', type: 'job', data: { params: { script: 'Second\n' } } }
+		] }
+	};
+	const result = runSync(t, {
+		setup: ['events'],
+		categories: [{ id: 'operations', title: 'Operations' }],
+		events: [workflow],
+		args: { file_props: 'workflow.nfirst01.params.script' }
+	});
+	const dir = Path.join(result.dir, 'workflows', 'Operations');
+	const source = JSON.parse(fs.readFileSync(Path.join(dir, 'Flow.json'), 'utf8')).items[0].data;
+	
+	assert.equal(result.status, 0);
+	assert.equal(fs.readFileSync(Path.join(dir, 'Flow-workflow.nfirst01.params.script.txt'), 'utf8'), 'First\n');
+	assert.equal(source.workflow.nodes[0].data.params.script, '(External)');
+	assert.equal(source.workflow.nodes[1].data.params.script, 'Second\n');
+	assert.equal(fs.readdirSync(dir).length, 2);
+});
+
 test('sync setup validates all Event Categories before writing any files', t => {
 	const result = runSync(t, {
 		setup: ['plugins', 'events'],
@@ -651,6 +706,112 @@ test('property neighbor matching requires an exact source basename boundary', t 
 	
 	assert.equal(result.status, 0);
 	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(result.report.requests.some(request => request.method === 'update_event'), false);
+});
+
+test('workflow node neighbors replace placeholders before upload', t => {
+	const shellScript = '#!/bin/sh\necho local\n';
+	const nodeScript = '#!/usr/bin/env node\nconsole.log("local");\n';
+	const remote = {
+		id: 'flow', title: 'Flow', type: 'workflow', category: 'operations',
+		workflow: { nodes: [
+			{ id: 'nfirst01', type: 'event', data: { params: { script: 'Remote shell\n' } } },
+			{ id: 'nsecond1', type: 'job', data: { params: { script: 'Remote node\n' } } }
+		] }
+	};
+	const local = JSON.parse(JSON.stringify(remote));
+	local.workflow.nodes.forEach(node => { node.data.params.script = '(External)'; });
+	const result = runSync(t, {
+		events: [remote],
+		existingSources: [
+			{ path: 'Flow.json', type: 'event', data: local },
+			{ path: 'Flow-workflow.nfirst01.params.script.sh', contents: shellScript },
+			{ path: 'Flow-workflow.nsecond1.params.script.js', contents: nodeScript }
+		],
+		args: { up: 'events' }
+	});
+	const updates = result.report.requests.filter(request => request.method === 'update_event');
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(updates.length, 1);
+	assert.equal(updates[0].data.workflow.nodes[0].data.params.script, shellScript);
+	assert.equal(updates[0].data.workflow.nodes[1].data.params.script, nodeScript);
+	const source = JSON.parse(fs.readFileSync(Path.join(result.dir, 'Flow.json'), 'utf8')).items[0].data;
+	assert.equal(source.workflow.nodes[0].data.params.script, '(External)');
+	assert.equal(source.workflow.nodes[1].data.params.script, '(External)');
+});
+
+test('workflow node neighbors receive pulled values while JSON keeps placeholders', t => {
+	const shellScript = '#!/bin/sh\necho remote\n';
+	const nodeScript = '#!/usr/bin/env node\nconsole.log("remote");\n';
+	const remote = {
+		id: 'flow', title: 'Flow', type: 'workflow', category: 'operations',
+		workflow: { nodes: [
+			{ id: 'nfirst01', type: 'event', data: { params: { script: shellScript } } },
+			{ id: 'nsecond1', type: 'job', data: { params: { script: nodeScript } } }
+		] }
+	};
+	const local = JSON.parse(JSON.stringify(remote));
+	local.workflow.nodes.forEach(node => { node.data.params.script = '(External)'; });
+	const result = runSync(t, {
+		events: [remote],
+		existingSources: [
+			{ path: 'Flow.json', type: 'event', data: local },
+			{ path: 'Flow-workflow.nfirst01.params.script.sh', contents: 'Old shell\n' },
+			{ path: 'Flow-workflow.nsecond1.params.script.js', contents: 'Old node\n' }
+		],
+		args: { down: 'events' }
+	});
+	const source = JSON.parse(fs.readFileSync(Path.join(result.dir, 'Flow.json'), 'utf8')).items[0].data;
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.errors, []);
+	assert.equal(fs.readFileSync(Path.join(result.dir, 'Flow-workflow.nfirst01.params.script.sh'), 'utf8'), shellScript);
+	assert.equal(fs.readFileSync(Path.join(result.dir, 'Flow-workflow.nsecond1.params.script.js'), 'utf8'), nodeScript);
+	assert.equal(source.workflow.nodes[0].data.params.script, '(External)');
+	assert.equal(source.workflow.nodes[1].data.params.script, '(External)');
+});
+
+test('workflow node shorthand preserves ordinary indexed dot paths', () => {
+	const sync = require('../lib/sync.js');
+	const data = { workflow: { nodes: [
+		{ id: 'nfirst01', data: { params: { script: 'Original\n' } } }
+	] } };
+	
+	// The literal "nodes" segment must not be mistaken for a workflow node ID.
+	assert.equal(sync.getSyncPropByPath(data, 'workflow.nfirst01.params.script'), 'Original\n');
+	assert.equal(sync.getSyncPropByPath(data, 'workflow.nodes.0.data.params.script'), 'Original\n');
+	assert.equal(sync.setSyncPropByPath(data, 'workflow.nodes.0.data.params.script', 'Indexed\n'), true);
+	assert.equal(sync.getSyncPropByPath(data, 'workflow.nfirst01.params.script'), 'Indexed\n');
+	assert.equal(sync.setSyncPropByPath(data, 'workflow.nfirst01.params.script', 'Shorthand\n'), true);
+	assert.equal(sync.getSyncPropByPath(data, 'workflow.nodes.0.data.params.script'), 'Shorthand\n');
+	assert.equal(sync.getSyncPropByPath(data, 'workflow.nmissing1.params.script'), undefined);
+	assert.equal(sync.setSyncPropByPath(data, 'workflow.nmissing1.params.script', 'Missing\n'), undefined);
+	assert.equal(data.workflow.nodes.length, 1);
+});
+
+test('a workflow neighbor for a missing node stops sync before upload', t => {
+	const workflow = {
+		id: 'flow', title: 'Flow', type: 'workflow', category: 'operations',
+		workflow: { nodes: [
+			{ id: 'nfirst01', type: 'job', data: { params: { script: 'Inline\n' } } }
+		] }
+	};
+	const result = runSync(t, {
+		events: [workflow],
+		existingSources: [
+			{ path: 'Flow.json', type: 'event', data: workflow },
+			{ path: 'Flow-workflow.nmissing1.params.script.sh', contents: 'Orphan\n' }
+		],
+		args: { up: 'events' }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /does not match an existing string property/);
 	assert.deepEqual(result.report.errors, []);
 	assert.equal(result.report.requests.some(request => request.method === 'update_event'), false);
 });

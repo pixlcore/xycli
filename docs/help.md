@@ -308,6 +308,8 @@ Setup creates one folder per resource type and one XYPDF JSON file per object, u
 
 For `--file_props`, use comma-separated property names or dot paths, such as `script,params.script`. Only nonempty string values are extracted. The JSON value becomes `(External)`, and sync loads the external file automatically. Setup chooses extensions from executable commands, shebangs, and JSON content when possible. Use `--default_ext ps1` (or `--default_ext .ps1`) to replace the `.txt` fallback for properties whose type cannot be detected. The override does not replace an extension that setup successfully detects.
 
+The same property selection also checks every workflow node automatically. For example, `params.script` in a node's `data` becomes a neighbor such as `My-Workflow-workflow.nt3sr3y4.params.script.sh`. The node ID in the filename identifies which node owns the property. No additional setup option is needed.
+
 Use `--new` from the root of an existing sync tree to add definitions that exist in xyOps but have no local source. Setup scans recursively and matches existing sources by item type and exact ID, so renamed files and custom folder layouts are preserved. New definitions use the normal suggested type and Category folders. Malformed, duplicate, unsupported, or orphaned local sources stop the operation before any new files are written. `--new` cannot be combined with `--force`, and it does not create new definitions in xyOps.
 
 An explicitly supplied `--down_cmd` runs from the current setup directory after at least one definition is written. It does not run when `--new` finds nothing or during a dry run. Saved sync completion commands are not inherited by setup.
