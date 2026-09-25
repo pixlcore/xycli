@@ -365,10 +365,7 @@ const app = {
 		print( "\n " + cyan.bold("Request:") );
 		this.jsonOutput(this.args);
 		
-		if (this.dry) {
-			this.toast('⚠️', 'orange', bold("DRY RUN: ") + "Exiting without sending request.");
-			return;
-		}
+		if (this.dry) return;
 		
 		cli.progress.start({ amount: 1, pct: false, text: gray('→ ' + name) });
 		var { err, data } = await this.api[name](this.args);
