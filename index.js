@@ -461,6 +461,7 @@ Tools.mergeHashInto( app, require('./lib/webhook.js') );
 Tools.mergeHashInto( app, require('./lib/transfer.js') );
 Tools.mergeHashInto( app, require('./lib/marketplace.js') );
 Tools.mergeHashInto( app, require('./lib/sync.js') );
+Tools.mergeHashInto( app, require('./lib/sync-buckets.js') );
 
 global.app = app;
 

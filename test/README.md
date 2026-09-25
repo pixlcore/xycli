@@ -8,7 +8,7 @@ Use Node.js 22 or newer and install the CLI dependencies with `npm install`.
 
 Start xyOps at `http://localhost:5522` and configure an administrator API key using your normal CLI config file or the `XYOPS_API_KEY` environment variable. The tests read the same configuration as `xy`, including `XYOPS_BASE_URL` overrides. They refuse to run against a different server address.
 
-Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The Server and Job tests need a connected server, the Job tests need the enabled stock Shell Plugin, and the Monitor tests also need a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
+Use an xyOps version that supports restoring API key IDs, hashes, and masks through `create_api_key`. The `sync-buckets` suite requires xyOps 1.1.2 or later. The Server and Job tests need a connected server, the Job tests need the enabled stock Shell Plugin, and the Monitor tests also need a server group. The log tests expect the standard log columns and debug entries in the current xyOps log.
 
 ## Running Tests
 
@@ -42,10 +42,10 @@ node --test --test-reporter=spec test/monitors.test.js
 
 The controller exits with a nonzero status if any suite fails. A failed lifecycle check stops the remaining dependent steps in that suite, runs cleanup, and allows the next suite to proceed.
 
-The configuration and sync unit suites run offline with disposable directories and do not contact xyOps. Run them directly without configuring a development server:
+The configuration and sync unit suites, including `sync-buckets-unit`, run offline with disposable directories and do not contact xyOps. Run them directly without configuring a development server:
 
 ```sh
-node --test test/config.test.js test/sync-unit.test.js
+node --test test/config.test.js test/sync-buckets-unit.test.js test/sync-unit.test.js
 ```
 
 ## Coverage
@@ -67,6 +67,8 @@ node --test test/config.test.js test/sync-unit.test.js
 | `servers` | Active and recently offline lists, local filters, installer generation, historical search, live and historical Server details, charts, processes, connections, pagination, validation, help |
 | `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
 | `sync` | Setup export, isolated filesystem discovery, external property files, dry-run, upsync, downsync, composite global-state governance, no-op detection, and guarded delete mode |
+| `sync-buckets` | Disposable Bucket setup, JSON replacement, file upload and download, and timestamp alignment on xyOps 1.1.2 or later |
+| `sync-buckets-unit` | Offline Bucket version gating, content setup, upload and download, timestamp alignment, and pre-delete safety |
 | `sync-unit` | Offline setup extension fallbacks, new-only exports and setup completion commands, PID locking and stale recovery, up-only deletion guards, pre-delete failure blocking, stock/Marketplace deletion protection, inherited settings and CLI overrides, warning/error exit status, duplicates, quiet/dry runs, completion failures, and notification delivery after warnings or errors |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |

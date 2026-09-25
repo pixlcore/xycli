@@ -54,6 +54,7 @@ Use these names with `--up`, `--down`, `--delete`, and setup:
 | --- | --- |
 | `alerts` | Alert definitions, rather than their invocations. |
 | `api_keys` | API Key definitions. |
+| `buckets` | Bucket definitions, JSON data, and uploaded files. Requires xyOps 1.1.2 or later. |
 | `categories` | Event Categories. |
 | `channels` | Notification Channels. |
 | `events` | Events and workflows. |
@@ -65,7 +66,7 @@ Use these names with `--up`, `--down`, `--delete`, and setup:
 
 `all` selects every supported type. Supply multiple types as a comma-separated string without spaces, such as `events,plugins,categories`.
 
-Buckets, Secret Vaults, Users, and Roles are not supported by sync. Individual workers, jobs, Tickets, Alert history, and snapshots are also outside its definition-sync scope. Workflows use the `events` selection even though setup places them in a separate folder (for convenience).
+Secret Vaults, Users, and Roles are not supported by sync. Individual workers, jobs, Tickets, Alert history, and snapshots are also outside its definition-sync scope. Workflows use the `events` selection even though setup places them in a separate folder (for convenience).
 
 ### Permissions
 
@@ -126,6 +127,8 @@ xyops-automation/
 ```
 
 Setup creates one folder per selected resource type and one JSON file per definition. Event and workflow exports are separated into `events/` and `workflows/`, then grouped into subfolders using their Category titles. Both participate in normal sync through the `events` selection.
+
+Bucket setup also creates a sibling directory for each Bucket's content. For example, a Bucket titled `My Bucket Name` has `buckets/My-Bucket-Name.json`, `buckets/My-Bucket-Name/data.json`, and `buckets/My-Bucket-Name/files/` for its definition, data, and uploaded files. Move or rename the sibling directory with the XYPDF file. A normal Bucket sync requires both the data file and files directory, even when they contain an empty object and no files. Bucket data upsync replaces the full remote data object, including removed keys. File transfers match xyOps normalized filenames and align local modification times with the server's timestamps after each transfer.
 
 Folder and filenames come from Category and definition titles: sequences of non-word characters become hyphens, and leading or trailing hyphens are removed. For example, the Event `Nightly Backup` in the `Operations` Category becomes `events/Operations/Nightly-Backup.json`. Different titles can produce the same path, so review the preview for collisions. Setup stops before writing anything if an Event or workflow selected for export refers to a Category that is not present in xyOps.
 
@@ -439,6 +442,10 @@ For each differing definition, the engine compares xyOps's `modified` timestamp 
 
 Two-way sync is experimental. Keep clocks synchronized, review dry runs, and preserve a history of both configuration and scripts. Git checkout, clone, restore, or file copying can give old content a new filesystem timestamp.
 
+Bucket data and files use their own modification times, separate from the Bucket definition. When contents differ, two-way sync compares `data.json` with the data record's modification time and each local file with the matching manifest date. Equal timestamps with differing Bucket content are reported as conflicts. After a transfer, xyCLI sets the local modification time to the server's returned time.
+
+Bucket file comparison uses size and modification time because the manifest has no content hash. A same-size change with an unchanged timestamp cannot be detected.
+
 For automatic two-way operation, use a persistent tree and run every minute. Both directions are considered on each run; you do not need separate alternating up and down jobs. Newly created definitions still need a setup export or individual local source.
 
 ### Remove a definition during two-way sync
@@ -510,6 +517,8 @@ xy sync ./ --up events,plugins,categories --down false --delete events
 Deleting an Event does not automatically remove its dependencies. Remote API rules still apply, including restrictions on active jobs and references.
 
 Deletion only begins after every update has completed and the sync-tracking state has been written without warnings or errors. If either phase fails, the entire delete pass is skipped for that run. Earlier successful updates remain in place, so correct the error and retry; definitions already updated will compare equal. Once deletion begins, successful earlier deletions are not rolled back if a later deletion fails.
+
+With `--delete buckets`, a remote Bucket file missing from a selected local Bucket's `files/` directory is deleted individually. Removing the Bucket XYPDF source deletes the whole Bucket, including all its data and files. A missing or invalid `data.json`, incomplete file inventory, or failed transfer prevents Bucket file deletion and the whole-object delete pass.
 
 An unavailable base directory stops the scan, but an existing empty directory can look like an empty inventory. Do not treat that guard as protection against an empty mount, accidental file removal, or missing exports of your own definitions.
 

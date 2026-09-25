@@ -200,6 +200,8 @@ xy sync ./ --down events,plugins
 xy sync ./ --up categories,plugins --down events --dry
 xy sync ./ --up events --down events --dry
 xy sync ./ --up all --dry
+xy sync ./ --up buckets --dry
+xy sync ./ --down buckets
 xy sync --up events,plugins --verbose
 ```
 
@@ -212,7 +214,7 @@ Pass one or more base directories, or omit them to scan the current directory. F
 - `--dry` previews changes without applying them.
 - `--verbose` shows full diffs and API requests and responses.
 
-You must enable at least one direction. `TYPES` is a comma-separated list of `alerts`, `api_keys`, `categories`, `channels`, `events`, `groups`, `monitors`, `plugins`, `tags`, or `web_hooks`. Use `all` to select every supported type. Workflows are included under `events`. Buckets, Secrets, Users, and Roles are not supported.
+You must enable at least one direction. `TYPES` is a comma-separated list of `alerts`, `api_keys`, `buckets`, `categories`, `channels`, `events`, `groups`, `monitors`, `plugins`, `tags`, or `web_hooks`. Use `all` to select every supported type. Workflows are included under `events`. Bucket sync requires xyOps v1.1.2 or later. Secrets, Users, and Roles are not supported.
 
 Enable both directions for the same type to use experimental two-way sync. The newest modification time wins, including external property files. Git checkouts can reset filesystem timestamps, so prefer one-way sync when reliable conflict handling matters. Dry runs never update xyOps, write files, run completion commands, or send notifications.
 
@@ -221,6 +223,8 @@ Sources must be plain `.json` XYPDF files containing exactly one item each. Obje
 Repeated sources with the same type and ID generate warnings, even if their contents are identical. Later duplicates are skipped during scanning, and the warnings stop the run before any definition, file, tracking, or deletion changes. Keep one source per object and avoid overlapping base directories. Warning notifications can still run; warnings produce exit status `1`.
 
 External string properties are loaded automatically from adjacent files named `BASENAME-PROPERTY.EXT`, such as `My-Plugin-script.js` beside `My-Plugin.json`, or `My-Event-params.script.sh` beside `My-Event.json`. The extension is your choice. Keep only one external file per property, and rename its basename along with the JSON file.
+
+Bucket metadata uses a normal XYPDF source. For a Bucket titled `My Bucket Name`, its separate JSON data and uploaded files live beside `buckets/My-Bucket-Name.json` in `buckets/My-Bucket-Name/data.json` and `buckets/My-Bucket-Name/files/`. Both `data.json` and `files/` are required for a selected local bucket. Bucket data upsync replaces the entire remote data object. Bucket files are matched by xyOps filename normalization and transferred according to size and modification time. Two-way bucket sync uses the data record and file timestamps from xyOps; a transfer updates local file times to match. Bucket files missing locally are deleted remotely only with up-only `--delete buckets`.
 
 **Delete mode**
 
@@ -282,6 +286,7 @@ Export existing xyOps definitions into a starter sync tree in the current direct
 
 ```sh
 xy sync setup events plugins categories --dry
+xy sync setup buckets
 xy sync setup events plugins categories --file_props script,params.script
 xy sync setup events --file_props params.script --default_ext ps1
 xy sync setup events plugins --new
@@ -295,6 +300,8 @@ xy sync --setup events,plugins --file_props script,params.script
 Choose one or more resource types separated by spaces, or use `all`. Supported types are the same as for `xy sync`. The `--setup TYPES` form also accepts a comma-separated list.
 
 Setup creates one folder per resource type and one XYPDF JSON file per object, using its title as a filename slug. Selecting `events` exports both Events and workflows, with workflows placed in a separate `workflows` folder. Events and workflows are grouped into subfolders using their Category title as a slug. Both are synced with `--up events` or `--down events`. Setup stops before writing if an Event or workflow selected for export refers to a missing Category.
+
+For each Bucket, setup also writes `BUCKET-SLUG/data.json` and downloads its files into `BUCKET-SLUG/files/` beside the XYPDF file. `--new` skips Bucket definitions already present locally, including their content. `--force` permits overwriting existing Bucket content files.
 
 - `--file_props PATHS` extracts string properties into adjacent files.
 - `--default_ext EXT` sets the fallback neighbor extension instead of `txt`.
