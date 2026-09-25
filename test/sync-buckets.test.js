@@ -57,7 +57,8 @@ test('bucket filesystem sync', async t => {
 		
 		await check('upsync replaces data and uploads a new file', async () => {
 			const content = Path.join(activeRoot, 'buckets', slug);
-			const added = Path.join(content, 'files', 'New: File.txt');
+			// Semicolon exercises filename normalization on Unix and Windows alike.
+			const added = Path.join(content, 'files', 'New; File.txt');
 			const source = Path.join(activeRoot, 'buckets', slug + '.json');
 			const xypdf = JSON.parse(fs.readFileSync(source, 'utf8'));
 			xypdf.items[0].data.notes = 'Local Bucket notes';
@@ -70,7 +71,7 @@ test('bucket filesystem sync', async t => {
 			assert.match(output, /-.*"keep": true/);
 			assert.match(output, /\+.*"keep": "local"/);
 			assert.match(output, new RegExp('\\n\\n ⬆️ Uploading \\d+ bucket files?: ' + title + ' \\(' + id + '\\)'));
-			assert.match(output, /📎.*New: File\.txt/);
+			assert.match(output, /📎.*New; File\.txt/);
 			assert.ok(output.indexOf('Updating bucket data:') > output.indexOf('Updating bucket:'), 'Bucket data has its own section after the definition');
 			const bucket = await call('getBucket', { id });
 			assert.equal(bucket.bucket.notes, 'Local Bucket notes');

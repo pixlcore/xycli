@@ -101,7 +101,8 @@ test('bucket setup writes data and binary files with server mtimes beside the XY
 test('upsync replaces data, normalizes manifest names, batches uploads, and deletes missing files last', async t => {
 	const removed = { filename: 'old.txt', path: 'files/bucket/bucket_unit/old/old.txt', size: 3, date: 60 };
 	const env = fixture(t, { remoteFiles: [removed] });
-	const upload = Path.join(env.paths.files, 'New: File.txt');
+	// Semicolon needs server filename normalization but remains a regular file on Windows.
+	const upload = Path.join(env.paths.files, 'New; File.txt');
 	fs.writeFileSync(upload, 'new');
 	fs.utimesSync(upload, 110, 110);
 	await env.app.syncBucketContents([env.item], { up: ['buckets'], delete: ['buckets'] });
