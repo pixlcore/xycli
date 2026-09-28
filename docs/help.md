@@ -213,6 +213,7 @@ Pass one or more base directories, or omit them to scan the current directory. F
 - `--down TYPES` updates local files from xyOps.
 - `--dry` previews changes without applying them.
 - `--verbose` shows full diffs and API requests and responses.
+- `--ignore_missing` skips local sources whose type and ID are absent from xyOps, without a warning or failure. It leaves their files untouched.
 
 You must enable at least one direction. `TYPES` is a comma-separated list of `alerts`, `api_keys`, `buckets`, `categories`, `channels`, `events`, `groups`, `monitors`, `plugins`, `tags`, or `web_hooks`. Use `all` to select every supported type. Workflows are included under `events`. Bucket sync requires xyOps v1.1.2 or later. Secrets, Users, and Roles are not supported.
 
@@ -306,6 +307,7 @@ For each Bucket, setup also writes `BUCKET-SLUG/data.json` and downloads its fil
 - `--file_props PATHS` extracts string properties into adjacent files.
 - `--default_ext EXT` sets the fallback neighbor extension instead of `txt`.
 - `--new` writes only remote definitions not already represented locally.
+- `--ignore_missing` lets `--new` skip local sources whose type and ID are absent from xyOps.
 - `--down_cmd COMMAND` runs after setup writes one or more definitions.
 - `--cmd_timeout SECONDS` changes the command timeout from 30 seconds.
 - `--stock` includes stock objects, which are omitted by default.
@@ -317,7 +319,7 @@ For `--file_props`, use comma-separated property names or dot paths, such as `sc
 
 The same property selection also checks every workflow node automatically. For example, `params.script` in a node's `data` becomes a neighbor such as `My-Workflow-workflow.nt3sr3y4.params.script.sh`. The node ID in the filename identifies which node owns the property. No additional setup option is needed.
 
-Use `--new` from the root of an existing sync tree to add definitions that exist in xyOps but have no local source. Setup scans recursively and matches existing sources by item type and exact ID, so renamed files and custom folder layouts are preserved. New definitions use the normal suggested type and Category folders. Malformed, duplicate, unsupported, or orphaned local sources stop the operation before any new files are written. `--new` cannot be combined with `--force`, and it does not create new definitions in xyOps.
+Use `--new` from the root of an existing sync tree to add definitions that exist in xyOps but have no local source. Setup scans recursively and matches existing sources by item type and exact ID, so renamed files and custom folder layouts are preserved. New definitions use the normal suggested type and Category folders. Malformed, duplicate, unsupported, or orphaned local sources stop the operation before any new files are written. With `--ignore_missing`, only sources whose type and ID are absent from xyOps are skipped. `--new` cannot be combined with `--force`, and it does not create new definitions in xyOps.
 
 An explicitly supplied `--down_cmd` runs from the current setup directory after at least one definition is written. It does not run when `--new` finds nothing or during a dry run. Saved sync completion commands are not inherited by setup.
 

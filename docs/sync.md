@@ -172,7 +172,7 @@ xy sync setup events plugins categories --new --file_props script,params.script 
 xy sync setup events plugins categories --new --file_props script,params.script
 ```
 
-New-only setup scans the current directory recursively and indexes existing XYPDF sources by item type and exact ID. Renamed files and custom folders are preserved. Remote definitions not found in that index are written to setup's normal type and Category folders; existing definitions are skipped without being rewritten. Malformed, duplicate, unsupported, or locally orphaned sources stop the operation before new files are written. `--new` cannot be combined with `--force`.
+New-only setup scans the current directory recursively and indexes existing XYPDF sources by item type and exact ID. Renamed files and custom folders are preserved. Remote definitions not found in that index are written to setup's normal type and Category folders; existing definitions are skipped without being rewritten. Malformed, duplicate, unsupported, or locally orphaned sources stop the operation before new files are written. Add `--ignore_missing` to skip only local sources whose type and ID are absent from xyOps. `--new` cannot be combined with `--force`.
 
 This is an additive local export. It does not create definitions in xyOps, and ordinary upsync or downsync still updates only definitions that already exist on both sides.
 
@@ -394,6 +394,7 @@ Relative paths resolve against the CLI's current working directory. Completion c
 | `--up TYPES` | `sync.up` | Disabled | Sync upwards to xyOps from local sources for these types. |
 | `--down TYPES` | `sync.down` | Disabled | Down downwards to existing local sources from xyOps for these types. |
 | `--delete TYPES` | `sync.delete` | Disabled | Delete remote objects with no local source. Use only in an up-only workflow; see [Delete mode](#delete-mode). |
+| `--ignore_missing` | `sync.ignore_missing` | Off | Skip local sources whose type and ID are absent from xyOps, without a warning or failure. Leave their files untouched. |
 | `--up_cmd COMMAND` | `sync.up_cmd` | None | Run a local shell command after at least one successful upsync. |
 | `--down_cmd COMMAND` | `sync.down_cmd` | None | Run a local shell command after at least one successful downsync. |
 | `--cmd_timeout SECONDS` | `sync.cmd_timeout` | `30` | Timeout for each completion command. |
@@ -417,6 +418,7 @@ At least one direction must be enabled. The command is a single run, not a backg
 | `--file_props PATHS` | Extract string properties into adjacent neighbor files. Accepts comma-separated dot paths or a JSON array. |
 | `--default_ext EXT` | Use this extension instead of `txt` when a neighbor's type cannot be detected. A leading dot is optional. |
 | `--new` | Export only remote definitions whose type and ID are not already present in the current local tree. |
+| `--ignore_missing` | With `--new`, skip local sources whose type and ID are absent from xyOps. Leave their files untouched. |
 | `--down_cmd COMMAND` | Run a local shell command after setup writes one or more definitions. |
 | `--cmd_timeout SECONDS` | Set the setup completion-command timeout in seconds. The default is `30`. |
 | `--stock` | Include stock definitions that ships wit xyOps (e.g. "Shell Plugin"), which setup normally omits. |
@@ -454,9 +456,9 @@ Two-way sync does not propagate deletions. Definition deletions are usually infr
 
 1. Delete the definition in the xyOps web interface first.
 2. Remove its local XYPDF JSON file and any neighboring external property files. If the tree is stored in Git, commit and push their removal so the dedicated sync checkout receives the deletion.
-3. Run sync again, or resume the schedule, after the local files are gone. Pause the schedule during these steps if you want to avoid a failed pass between the two removals.
+3. Run sync again, or resume the schedule, after the local files are gone. Without `--ignore_missing`, pause the schedule during these steps if you want to avoid a failed pass between the two removals.
 
-If a sync runs after the xyOps deletion but before local cleanup, the leftover source produces a missing-object warning. The run exits with a failure status before updating or downloading any definitions, and a script that stops on failure will not reach a following `sync setup --new` step. The deleted definition is not recreated. Remove the stale files and retry.
+If a sync runs after the xyOps deletion but before local cleanup, the leftover source normally produces a missing-object warning and stops the run before any definition changes. Add `--ignore_missing` to ordinary sync and any following `sync setup --new` command to skip that source and keep processing other definitions. This does not remove the local files or propagate the deletion to Git. Remove those files yourself to complete the deletion. Other scan warnings and errors still stop the run.
 
 Do not remove the Git files first while the definition still exists in xyOps. A scheduled `sync setup --new` pass can export the still-existing definition back into the repository. See the [Two-Way Git Sync Tutorial](two-way-git-tutorial.md#delete-a-definition-from-both-sides) for the Git workflow.
 

@@ -35,7 +35,8 @@ cli.mapArgs({
 	'd': 'debug',
 	'f': 'format',
 	'r': 'raw',
-	'h': 'help'
+	'h': 'help',
+	'ignore-missing': 'ignore_missing'
 });
 
 process.on('SIGINT', function() { cli.progress.end(); process.exit(130); } );

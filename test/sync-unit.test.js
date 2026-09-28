@@ -227,6 +227,73 @@ test('sync errors exit nonzero even in quiet mode or a dry run', t => {
 	}
 });
 
+test('sync ignore-missing skips only absent remote IDs and continues updates', t => {
+	const remote = { id: 'present', title: 'Present', notes: 'Remote' };
+	const local = { ...remote, notes: 'Local' };
+	const missing = { id: 'gone', title: 'Gone', notes: 'Keep this file' };
+	const result = runSync(t, {
+		categories: [remote],
+		existingSources: [
+			{ path: 'Gone.json', type: 'category', data: missing },
+			{ path: 'Present.json', type: 'category', data: local }
+		],
+		args: { up: 'categories', down: 'categories', delete: false, ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.equal(result.report.calls.includes('update_category'), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'Gone.json')), true);
+	assert.equal(JSON.parse(fs.readFileSync(Path.join(result.dir, 'Gone.json'), 'utf8')).items[0].data.notes, 'Keep this file');
+});
+
+test('sync ignore-missing does not suppress malformed source warnings', t => {
+	const result = runSync(t, {
+		source: { id: 'missing', title: 'Missing' },
+		emptyItems: true,
+		args: { up: 'categories', ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /empty, malformed or missing items array/);
+	assert.deepEqual(result.report.calls, []);
+});
+
+test('sync ignore-missing still validates neighbors of missing sources', t => {
+	const result = runSync(t, {
+		source: { id: 'missing', title: 'Missing' },
+		invalidNeighbor: true,
+		args: { up: 'categories', ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /Neighbor file does not match/);
+	assert.deepEqual(result.report.calls, []);
+});
+
+test('sync ignore-missing still rejects duplicate missing sources', t => {
+	const result = runSync(t, {
+		source: { id: 'missing', title: 'Missing' },
+		duplicateSource: true,
+		args: { up: 'categories', ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /Duplicate source item found/);
+	assert.deepEqual(result.report.calls, []);
+});
+
+test('sync ignore-missing can be disabled over a saved setting', t => {
+	const result = runSync(t, {
+		source: { id: 'missing', title: 'Missing' },
+		config: { up: 'categories', ignore_missing: true },
+		args: { ignore_missing: false }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /Cannot find category in xyOps/);
+});
+
 test('sync sends existing Plugin properties through the sync API path', t => {
 	const remote = { id: 'legacy', title: 'Legacy', type: 'event', command: 'node', cwd: '/opt/legacy', custom_field: { keep: true }, notes: 'Remote' };
 	const local = { ...remote, notes: 'Local' };
@@ -311,6 +378,39 @@ test('sync setup new exports only remote definitions missing from the local tree
 	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin-script.ps1')), true);
 	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Existing.json')), false);
 	assert.equal(fs.existsSync(Path.join(result.dir, 'custom', 'layout', 'Renamed-Existing.json')), true);
+});
+
+test('sync setup new ignore-missing leaves stale files and exports new definitions', t => {
+	const missing = { id: 'gone', title: 'Gone' };
+	const added = { id: 'added', title: 'Added Plugin', command: 'node' };
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [added],
+		existingSources: [{ path: 'old/Gone.json', type: 'plugin', data: missing }],
+		args: { new: true, ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'old', 'Gone.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin.json')), true);
+});
+
+test('sync setup new ignore-missing still rejects duplicate missing sources', t => {
+	const missing = { id: 'gone', title: 'Gone' };
+	const result = runSync(t, {
+		setup: ['plugins'],
+		plugins: [{ id: 'added', title: 'Added Plugin', command: 'node' }],
+		existingSources: [
+			{ path: 'old/Gone.json', type: 'plugin', data: missing },
+			{ path: 'other/Gone.json', type: 'plugin', data: missing }
+		],
+		args: { new: true, ignore_missing: true }
+	});
+	
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /Duplicate source item found/);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'plugins', 'Added-Plugin.json')), false);
 });
 
 test('sync setup runs down_cmd after writing files from the setup directory', t => {

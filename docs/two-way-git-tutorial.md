@@ -151,6 +151,7 @@ GIT_DOWN_CMD="git add --all && git commit -m 'Sync from xyOps' && git push"
 	--up events \
 	--down events \
 	--delete false \
+	--ignore_missing \
 	--down_cmd "$GIT_DOWN_CMD" \
 	--cmd_timeout 120
 
@@ -159,6 +160,7 @@ GIT_DOWN_CMD="git add --all && git commit -m 'Sync from xyOps' && git push"
 # The setup completion command runs only when new files were actually written.
 "$XY_BIN" sync setup events \
 	--new \
+	--ignore_missing \
 	--file_props script,params.script \
 	--default_ext ps1 \
 	--down_cmd "$GIT_DOWN_CMD" \
@@ -184,6 +186,8 @@ The two uses of `--down_cmd` are deliberately identical:
 - Ordinary sync runs it only after at least one existing definition is successfully downloaded.
 - `sync setup --new` runs it only after at least one new local definition is written.
 - A no-op or dry run does not create a commit or push.
+
+The two `--ignore_missing` switches let the script continue while a definition deleted in xyOps still has a local XYPDF source. Other definitions can sync and new xyOps definitions can be exported during that interval. The stale source and its neighboring files remain in Git until you remove and push them. Other scan problems still stop the run.
 
 The command stages the entire dedicated repository with `git add --all`. Do not use this script in a checkout containing unrelated work. If your repository contains other material, narrow the Git paths in `GIT_DOWN_CMD`.
 
@@ -247,13 +251,13 @@ When someone creates a new Event in xyOps, the ordinary sync pass does not know 
 
 ### Delete a definition from both sides
 
-Event and workflow deletions are usually infrequent, so it is practical to coordinate the xyOps and Git changes manually. Pause the scheduled script if you want to avoid a failed pass while you make both changes:
+Event and workflow deletions are usually infrequent, so coordinate the xyOps and Git changes manually. The `--ignore_missing` switches let the scheduled script keep running while you complete these steps:
 
 1. Delete the definition in the xyOps web interface first.
-2. Remove its XYPDF JSON file and all neighboring property files from Git, then commit and push the deletion. Make sure the dedicated sync checkout receives that commit before its next sync pass.
-3. Resume the scheduled script and check its next run.
+2. Remove its XYPDF JSON file and all neighboring property files from Git, then commit and push the deletion.
+3. Check that the dedicated sync checkout receives the commit and completes a later sync run.
 
-If the script runs after the xyOps deletion but before the Git deletion reaches its checkout, ordinary sync reports a missing-object warning and exits with a failure status. It does not recreate the definition or process other changes. The script's `set -e` also prevents the following `sync setup --new` pass. Once the stale files are removed, the next run can proceed normally.
+If the script runs after the xyOps deletion but before the Git deletion reaches its checkout, both sync commands skip that local source without treating it as a warning. They leave its files in place and continue processing other definitions. Remove and push the stale files to complete the deletion. Without `--ignore_missing` on both commands, the missing source stops the script.
 
 Do not remove the Git files first. While the definition still exists in xyOps, `sync setup --new` can export it again and commit the files back to Git. This is a manual deletion procedure, not automatic two-way deletion. See the [Sync Guide](sync.md#remove-a-definition-during-two-way-sync) for the general behavior.
 
@@ -267,7 +271,7 @@ Do not remove the Git files first. While the definition still exists in xyOps, `
 | The wrong side wins a two-way conflict | Check NTP, the xyOps conductor clock, and the modification times of the JSON and neighboring files. A checkout, restore, or file copy can refresh local timestamps. |
 | A new Event is not exported | Confirm `sync setup events --new` runs from the repository root and that the API Key can see the Event. Add the correct property path if its script is stored somewhere other than `params.script`. |
 | A new Git file is not created in xyOps | Ordinary sync updates definitions that already exist on both sides. Create or import the definition into xyOps first, then let sync manage subsequent changes. |
-| A deleted item reappears or causes an error | Follow the [coordinated deletion steps](#delete-a-definition-from-both-sides): delete in xyOps first, then remove and commit its local files. A leftover source stops sync until it is removed. |
+| A deleted item reappears or causes an error | Follow the [coordinated deletion steps](#delete-a-definition-from-both-sides): delete in xyOps first, then remove and commit its local files. Use `--ignore_missing` on both sync commands to keep the script running during the gap. |
 | A cron run is skipped | Another cron invocation may hold the `flock` lock. The lock file itself may remain when no lock is held, so check for a running sync process rather than treating the file as stale. |
 | A completion command times out | Increase `--cmd_timeout`, investigate Git network latency, and confirm that Git cannot wait for interactive input. |
 
