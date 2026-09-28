@@ -402,7 +402,7 @@ Relative paths resolve against the CLI's current working directory. Completion c
 | `--lock_file PATH` | `sync.lock_file` | Temporary file keyed by `base_url` | Use an explicit path for the built-in PID lock. |
 | `--dry` | n/a | Off | Dry-Run Mode: Preview without writes, completion commands, or notifications. |
 | `--verbose`, `-v` | n/a | Off | Show complete diffs and additional request, response, and write details. |
-| `--quiet`, `-q` | n/a | Off | Suppress routine output and progress. Fatal errors remain visible, but collected sync warnings and errors can be suppressed. |
+| `--quiet`, `-q` | n/a | Off | Suppress routine output and progress. Warnings and errors remain visible on standard error. |
 
 At least one direction must be enabled. The command is a single run, not a background watcher; repeat it through a scheduler or hook for automatic operation.
 
@@ -691,7 +691,7 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 Choose only the item types your tree manages. This example explicitly disables downsync and deletion. Add `--error_event EVENT_ID` if you prefer an error-handling Event, or configure notifications in the account's CLI config file.
 
-`--quiet` keeps routine progress and diffs out of cron's output, avoiding an email for every ordinary run. Fatal CLI errors still print to standard error. Collected sync warnings and errors can be suppressed, so quiet automation should have configured notifications and external monitoring. Remove `--quiet` while investigating a problem.
+`--quiet` keeps routine progress and diffs out of cron's output, avoiding an email for every ordinary run. Warnings and errors still print to standard error. Configure notifications if you also want xyOps to send a message or launch an Event when sync encounters a problem.
 
 If the previous run is still active, the built-in PID lock rejects the overlapping invocation with a nonzero exit status. The next minute tries again. A single sync can therefore take longer than a minute without starting another copy.
 
@@ -946,7 +946,7 @@ Repository concurrency controls these workflow runs. Coordinate all writers to t
 | `down_cmd` does not run | Normal sync requires a successful download. Setup requires at least one written definition and an explicit `--down_cmd`. No-op and dry runs do not trigger it. |
 | A download commit launches another sync | Disable deployment Git hooks for commits made by `down_cmd`. The nested sync will otherwise be rejected by the built-in PID lock. |
 | Sync reports another PID is running | Another local sync owns the lock. Let it finish. If the PID is no longer alive, the next run recovers the stale file automatically. If the PID belongs to an unrelated recycled process, verify that no sync is active before removing the reported lock file. |
-| A scheduled run prints nothing | `--quiet` suppresses routine output and collected reports. Remove it to investigate and configure notifications. |
+| A scheduled run prints nothing | `--quiet` suppresses routine output. Warnings and errors still print to standard error. Check that the scheduler captures it. |
 | Sync exits nonzero after a warning report | Scan warnings prevent changes from being applied, so warnings and errors both exit with status `1`. Resolve the reported problem before retrying. |
 | Notifications never arrive | Check API access, email setup and privileges, the error Event's manual trigger, and failures occurring before reporting. |
 | API Key updates behave differently after import | Portable definitions do not transfer usable secret key material. Treat key credentials separately from their definitions. |

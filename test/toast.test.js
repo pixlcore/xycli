@@ -7,14 +7,14 @@ cli.global();
 
 test('toast wraps within the terminal width without ellipsis', () => {
 	const originalWidth = cli.width;
-	const originalWrite = process.stdout.write;
+	const originalWrite = process.stderr.write;
 	const originalColor = cli.chalk.enabled;
 	let output = '';
 	
 	try {
 		cli.width = function() { return 40; };
 		cli.chalk.enabled = false;
-		process.stdout.write = function(chunk) {
+		process.stderr.write = function(chunk) {
 			output += chunk;
 			return true;
 		};
@@ -27,7 +27,7 @@ test('toast wraps within the terminal width without ellipsis', () => {
 	finally {
 		cli.width = originalWidth;
 		cli.chalk.enabled = originalColor;
-		process.stdout.write = originalWrite;
+		process.stderr.write = originalWrite;
 	}
 	
 	const box_lines = output.split('\n').filter( line => line.match(/[┌│└]/) );

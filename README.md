@@ -134,7 +134,7 @@ These switches control output or execution across many commands. Add them to the
 | Switch | Short form | What it does |
 | --- | --- | --- |
 | `--verbose` | `-v` | Show extra detail. Resource views may expand scripts, parameters, or monitoring sections; many mutation commands also display API requests and responses. |
-| `--quiet` | `-q` | Suppress ordinary terminal output and progress displays. JSON data still prints, and fatal error messages remain visible on stderr. |
+| `--quiet` | `-q` | Suppress ordinary terminal output and progress displays. JSON data still prints, and human-readable warnings and errors remain visible on stderr. |
 | `--dry` | | Preview a supported operation without applying it. Resource mutations, imports, exports, sync, and API calls use this to show planned changes or requests. It does not prevent connection checks or reads, and does not apply to local `xy config` updates. |
 | `--format json` | `-f json` | Display supported results as indented JSON instead of the usual report or table. |
 | `--format jsonc` | `-f jsonc` | Display supported results as compact JSON on one line. Here, `jsonc` means compact JSON. |
@@ -157,7 +157,7 @@ XYOPS_COLOR=false xy events --format json --quiet > ./events.json
 xy categories -f jsonc -q > ./categories.json
 ```
 
-Fatal errors print to stderr and exit with a nonzero status even in quiet mode, so redirecting JSON output to a file leaves those errors visible in your terminal. Quiet mode can still suppress command-specific warnings and failure reports, such as sync messages or import results. Sync warnings and errors still produce a nonzero exit status. Check exit status and any structured results when scripting; omit `--quiet` when you need those detailed diagnostics.
+Human-readable warnings and errors print to stderr even in quiet mode, so redirecting JSON output to a file leaves those diagnostics visible in your terminal. Structured JSON results may also include warnings and errors. Sync warnings and errors still produce a nonzero exit status. Check exit status and any structured results when scripting.
 
 JSON output varies by command: some local collection views return all matches even when their table view is paginated, while database searches may return only the selected page. Some commands print multiple JSON values, such as the request and response from `xy api`. Check the command reference when using the output in a script.
 

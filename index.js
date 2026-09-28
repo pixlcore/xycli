@@ -18,6 +18,15 @@ if (!process.env.XYOPS_USER_AGENT) {
 	process.env.XYOPS_USER_AGENT = `xyOps CLI v${pkg.version} (Node.js); ${os.hostname()} (${os.platform()}/${os.arch()})`;
 }
 
+// Warnings and errors must reach stderr even in quiet mode. Install this
+// before cli.global() so its global warn() helper is bound to cli as usual.
+cli.warn = function(msg) {
+	if (this.progress.running) this.progress.erase();
+	process.stderr.write(msg);
+	if (this.progress.running) this.progress.draw();
+	this.log(msg);
+};
+
 cli.global();
 
 cli.mapArgs({
@@ -413,6 +422,8 @@ const app = {
 	
 	dieUsage(heading) {
 		// print help and exit
+		if (cli.args.quiet) this.die("Invalid usage. Run 'xy help " + heading + "' for details.");
+		
 		this.printHelp(heading);
 		println("");
 		process.exit(1);

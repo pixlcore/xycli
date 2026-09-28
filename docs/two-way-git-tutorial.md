@@ -207,7 +207,7 @@ Run the script every minute, with `flock` outside the script:
 * * * * * /usr/bin/flock --nonblock --conflict-exit-code 0 /tmp/xyops-git-sync.lock /usr/local/sbin/xyops-git-sync >/dev/null
 ```
 
-Cron normally emails job output when local mail delivery is configured. This entry discards routine standard output so successful runs remain silent, but leaves standard error alone so failures can still trigger mail. The xyCLI commands deliberately omit `--quiet`, because that option can suppress collected sync warnings and error reports along with routine output.
+Cron normally emails job output when local mail delivery is configured. This entry discards routine standard output so successful runs remain silent, but leaves standard error alone so failures can still trigger mail. The xyCLI commands show progress when run manually; you can add `--quiet` to suppress that progress while keeping warnings and errors on standard error.
 
 To keep successful output in a log instead, replace `>/dev/null` with an append redirect to a file that the sync account can write. Do not place that log inside the Git repository because the completion command stages the whole tree.
 
