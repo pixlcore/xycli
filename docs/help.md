@@ -240,6 +240,16 @@ xy sync ./ --up events,plugins --delete events
 
 **The scanned directories must contain a complete inventory of the other objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions of your own definitions. Verify that all source directories are available and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates begin. If an update or sync-tracking API operation fails, earlier successful updates remain in place, but the entire delete pass is skipped for that run.
 
+**System Hook deletions**
+
+Use `--syshook ACTION` when a matching xyOps System Hook launches the CLI. This supports deletion hooks for every standard sync definition type except Buckets. It reads the activity JSON from STDIN and removes only the XYPDF with the matching type and ID, plus its neighboring property files. It does not run ordinary sync, compare definitions, or call the xyOps API. Pass exactly one sync directory, and use an absolute path because System Hooks start in a temporary directory. See the [supported actions](sync.md#system-hook-deletion) for the exact hook names, including `apikey_delete` for API Keys.
+
+```sh
+xy sync /srv/xyops-automation --syshook event_delete --down_cmd /usr/local/sbin/commit-xyops-deletion
+```
+
+`--down_cmd` runs from the sync directory only after files are actually removed. A missing local source is a successful no-op; duplicate matching sources stop the command without deleting either one. `--dry` previews the files without deleting them or running `down_cmd`. No xyOps URL or API Key is needed. See [System Hook deletion](sync.md#system-hook-deletion) for configuration and operational details.
+
 **Completion commands and notifications**
 
 ```sh
@@ -255,7 +265,7 @@ xy sync ./ --up events,plugins \
 - `--error_email ADDRESS` sends warnings and errors by email through xyOps.
 - `--error_event EVENT_ID` runs an Event on warnings or errors.
 
-Completion commands run in a local shell in the first base directory. Deletions alone do not trigger them. Event notifications receive `input.data.errors` and `input.data.warnings`.
+Completion commands run in a local shell in the first base directory. Successful up-only deletion triggers `up_cmd`; local System Hook deletion triggers an explicitly supplied `down_cmd`. Event notifications receive `input.data.errors` and `input.data.warnings`.
 
 The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails. Retry the sync after correcting an error; previously applied updates compare equal, and deletion remains disabled until the pre-delete phase completes without warnings or errors.
 

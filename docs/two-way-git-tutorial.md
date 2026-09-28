@@ -251,7 +251,7 @@ When someone creates a new Event in xyOps, the ordinary sync pass does not know 
 
 ### Delete a definition from both sides
 
-Event and workflow deletions are usually infrequent, so coordinate the xyOps and Git changes manually. The `--ignore_missing` switches let the scheduled script keep running while you complete these steps:
+You can automate deletions made in xyOps with [System Hook deletion](sync.md#system-hook-deletion). For manual coordination, the `--ignore_missing` switches let the scheduled script keep running while you complete these steps:
 
 1. Delete the definition in the xyOps web interface first.
 2. Remove its XYPDF JSON file and all neighboring property files from Git, then commit and push the deletion.

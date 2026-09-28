@@ -250,6 +250,14 @@ const app = {
 		delete args.quiet;
 		delete args.verbose;
 		
+		// A System Hook deletion uses only its STDIN payload and local XYPDF
+		// files.  Run it before the normal xyOps API credential and config fetch.
+		if ((cmd == 'sync') && ('syshook' in args)) {
+			await this.cmd_sync();
+			print("\n");
+			return;
+		}
+		
 		// create temp dir if needed
 		this.tempDir = this.config.temp_dir || Path.join( os.tmpdir(), 'xyops', 'cli' );
 		if (!fs.existsSync(this.tempDir)) Tools.mkdirpSync( this.tempDir );
@@ -471,6 +479,7 @@ Tools.mergeHashInto( app, require('./lib/transfer.js') );
 Tools.mergeHashInto( app, require('./lib/marketplace.js') );
 Tools.mergeHashInto( app, require('./lib/sync.js') );
 Tools.mergeHashInto( app, require('./lib/sync-buckets.js') );
+Tools.mergeHashInto( app, require('./lib/sync-syshook.js') );
 
 global.app = app;
 

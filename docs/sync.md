@@ -394,9 +394,10 @@ Relative paths resolve against the CLI's current working directory. Completion c
 | `--up TYPES` | `sync.up` | Disabled | Sync upwards to xyOps from local sources for these types. |
 | `--down TYPES` | `sync.down` | Disabled | Down downwards to existing local sources from xyOps for these types. |
 | `--delete TYPES` | `sync.delete` | Disabled | Delete remote objects with no local source. Use only in an up-only workflow; see [Delete mode](#delete-mode). |
+| `--syshook ACTION` | n/a | Disabled | Handle one supported definition deletion activity from STDIN as a local-only deletion; see [System Hook deletion](#system-hook-deletion). |
 | `--ignore_missing` | `sync.ignore_missing` | Off | Skip local sources whose type and ID are absent from xyOps, without a warning or failure. Leave their files untouched. |
 | `--up_cmd COMMAND` | `sync.up_cmd` | None | Run a local shell command after at least one successful upsync. |
-| `--down_cmd COMMAND` | `sync.down_cmd` | None | Run a local shell command after at least one successful downsync. |
+| `--down_cmd COMMAND` | `sync.down_cmd` | None | Run a local shell command after at least one successful downsync, or an explicit command after a System Hook deletion. |
 | `--cmd_timeout SECONDS` | `sync.cmd_timeout` | `30` | Timeout for each completion command. |
 | `--error_email ADDRESS` | `sync.error_email` | None | Email collected warnings and errors through xyOps. |
 | `--error_event EVENT_ID` | `sync.error_event` | None | Launch an Event with collected warnings and errors in its input data. |
@@ -461,6 +462,44 @@ Two-way sync does not propagate deletions. Definition deletions are usually infr
 If a sync runs after the xyOps deletion but before local cleanup, the leftover source normally produces a missing-object warning and stops the run before any definition changes. Add `--ignore_missing` to ordinary sync and any following `sync setup --new` command to skip that source and keep processing other definitions. This does not remove the local files or propagate the deletion to Git. Remove those files yourself to complete the deletion. Other scan warnings and errors still stop the run.
 
 Do not remove the Git files first while the definition still exists in xyOps. A scheduled `sync setup --new` pass can export the still-existing definition back into the repository. See the [Two-Way Git Sync Tutorial](two-way-git-tutorial.md#delete-a-definition-from-both-sides) for the Git workflow.
+
+### System Hook deletion
+
+xyOps [System Hooks](https://docs.xyops.io/#Docs/syshooks) can launch xyCLI when a standard synced definition is deleted. Configure each deletion action you need separately. The `--syshook` command reads the activity JSON from STDIN, checks that its action matches the command, and uses the deleted object's type and exact ID to find one local XYPDF source. It removes that source and its neighboring external property files. Other local definitions, including new ones not yet in xyOps, are left alone.
+
+| Sync selection | System Hook action |
+| --- | --- |
+| `alerts` | `alert_delete` |
+| `api_keys` | `apikey_delete` |
+| `categories` | `category_delete` |
+| `channels` | `channel_delete` |
+| `events` (including workflows) | `event_delete` |
+| `groups` | `group_delete` |
+| `monitors` | `monitor_delete` |
+| `plugins` | `plugin_delete` |
+| `tags` | `tag_delete` |
+| `web_hooks` | `web_hook_delete` |
+
+Buckets are excluded because a Bucket may have separate JSON data and uploaded files alongside its XYPDF source. The `bucket_delete` activity is not supported by `--syshook`.
+
+For example, configure the following hooks on the primary conductor, adjusting executable and checkout paths:
+
+```json
+{
+	"hooks": {
+		"event_delete": {
+			"shell_exec": "/usr/local/bin/xy sync /srv/xyops-automation --syshook event_delete --down_cmd /usr/local/sbin/commit-xyops-deletion"
+		},
+		"plugin_delete": {
+			"shell_exec": "/usr/local/bin/xy sync /srv/xyops-automation --syshook plugin_delete --down_cmd /usr/local/sbin/commit-xyops-deletion"
+		}
+	}
+}
+```
+
+The `--down_cmd` script can stage, commit, and push the deletions in a dedicated Git checkout. It runs only after at least one file was removed. A missing source is a successful no-op, and duplicate matching sources stop the command before any files are removed. Use `--dry` to preview the selected files without changing them or running the completion command.
+
+This mode does not run ordinary sync, fetch remote definitions, or change xyOps. It ignores saved sync direction settings and requires exactly one directory. No xyOps URL or API Key is needed. The CLI still uses a host-local lock, with a fixed default lock key when no `base_url` is configured. System shell hooks run on the primary conductor from a temporary directory, and xyOps limits them to 60 seconds. The conductor must be able to access the checkout and Git credentials. If regular sync runs on another host, its local lock cannot protect this checkout; arrange for both operations to use the same host and lock if they share a checkout. Watch hook failures and Git push failures, because a failed hook is not automatically retried.
 
 ## Remote-management warnings
 
@@ -546,7 +585,7 @@ xy sync ./ --down events,plugins --down_cmd "./commit-downloads.sh" --cmd_timeou
 ### When commands run
 
 - `up_cmd` runs if at least one object was successfully upsynced (this includes deletes).
-- `down_cmd` runs if at least one object was successfully downsynced.
+- `down_cmd` runs if at least one object was successfully downsynced. In `--syshook` mode, an explicitly supplied `down_cmd` runs after the matching local files are deleted.
 - During setup, an explicitly supplied `down_cmd` runs if at least one definition was written.
 - If both apply, `up_cmd` runs first, then `down_cmd`.
 - Neither runs for an identical/no-op run, a scan that stopped before changes, or a dry run.
@@ -637,7 +676,7 @@ Runs with no warnings or errors exit with status `0`. Scan warnings prevent chan
 
 Every `xy sync` command acquires a host-local PID lock before it loads remote definitions or touches local files. This includes ordinary up, down, two-way, delete, dry-run, and setup operations. The lock remains held through completion commands and error notifications, so every CLI entry point uses the same overlap protection automatically.
 
-By default, xyCLI creates a lock file in the operating system's temporary directory. Its filename contains a hash of the normalized `base_url`, so syncs targeting the same xyOps instance on one host serialize even when they use different directories or API Keys. Syncs for different instances use different default locks.
+By default, xyCLI creates a lock file in the operating system's temporary directory. Its filename contains a hash of the normalized `base_url`, so syncs targeting the same xyOps instance on one host serialize even when they use different directories or API Keys. Syncs for different instances use different default locks. System Hook deletions without a configured `base_url` use a fixed local key instead.
 
 When another live sync process owns the lock, the new command stops before doing any work, prints the owning PID and lock path, and exits nonzero. It does not wait or queue. Schedulers can try again on their next run. If a process was forcibly terminated and left its PID file behind, the next invocation detects that the PID is dead, removes the stale file, atomically acquires a replacement, and continues.
 
