@@ -23,6 +23,7 @@ test('tickets', async t => {
 	const body = '# Test Ticket\n\n- **Bold item** with `code`\n';
 	let ticketCreated = false;
 	let tagCreated = false;
+	let commentAuthor = '';
 
 	fs.writeFileSync(bodyFile, body);
 	fs.writeFileSync(firstFile, 'First Ticket attachment.\n');
@@ -110,6 +111,8 @@ test('tickets', async t => {
 			const saved = row.changes.filter( change => change.type == 'comment' );
 			assert.equal(saved.length, 1);
 			assert.equal(saved[0].body, comment);
+			// The API key can belong to any user, so use the author saved by xyOps.
+			commentAuthor = saved[0].username || '(Unknown)';
 			assert.equal(row.status, 'draft');
 		});
 
@@ -159,7 +162,7 @@ test('tickets', async t => {
 				'TICKET #' + num, 'Number', '#' + num, 'Ticket ID', id, subject,
 				'TICKET BODY', 'Test Ticket', '• Bold item with code',
 				'TICKET FILES', Path.basename(firstFile), Path.basename(secondFile), 'Download a file',
-				'Comment by admin', 'Investigation update', '• Checked the logs'
+				'Comment by ' + commentAuthor, 'Investigation update', '• Checked the logs'
 			]) assert.ok(out.includes(text), text);
 			if (event) {
 				assert.match(out, /TICKET EVENTS/);
