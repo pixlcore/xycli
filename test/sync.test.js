@@ -510,6 +510,48 @@ test('sync', async t => {
 			assert.ok(fixtures.category && fixtures.plugin && fixtures.event, 'Resources outside the missing fixture remain');
 			assert.deepEqual(fixtures.syncState, deleteSyncState, 'Up-only delete mode tracks the remaining Category sources');
 		});
+		
+		await check('remove disposable remote Event and Plugin for down-only deletion', async () => {
+			// The local sources and external property files remain in the isolated
+			// sync tree. Delete only these two server fixtures so down-delete has
+			// exactly two local candidates and no unrelated remote mutations.
+			await call('deleteEvent', { id: eventID });
+			await call('deletePlugin', { id: pluginID });
+			const fixtures = await getFixtures();
+			assert.equal(fixtures.event, undefined);
+			assert.equal(fixtures.plugin, undefined);
+			assert.ok(fixtures.category, 'Unrelated Category remains in xyOps');
+			for (const file of [eventFile, eventScriptFile, pluginFile, pluginScriptFile, categoryFile]) {
+				assert.ok(fs.existsSync(file), 'Local fixture remains before down-delete: ' + file);
+			}
+		});
+		
+		await check('dry down-only delete preserves local Event and Plugin files', () => {
+			const output = xy([
+				'sync', syncRoot, '--up', 'false', '--down', 'events,plugins', '--delete', 'events,plugins', '--dry'
+			], { cwd: temp });
+			assert.match(output, /Would delete local event/);
+			assert.match(output, /Would delete local plugin/);
+			for (const file of [eventFile, eventScriptFile, pluginFile, pluginScriptFile, categoryFile]) {
+				assert.ok(fs.existsSync(file), 'Dry run preserves local fixture: ' + file);
+			}
+		});
+		
+		await check('down-only delete removes only missing Event and Plugin files', async () => {
+			const output = xy([
+				'sync', syncRoot, '--up', 'false', '--down', 'events,plugins', '--delete', 'events,plugins'
+			], { cwd: temp });
+			assert.match(output, /Deleting local event/);
+			assert.match(output, /Deleting local plugin/);
+			for (const file of [eventFile, eventScriptFile, pluginFile, pluginScriptFile]) {
+				assert.ok(!fs.existsSync(file), 'Down-delete removes local fixture: ' + file);
+			}
+			assert.ok(fs.existsSync(categoryFile), 'Unrelated local Category remains');
+			const fixtures = await getFixtures();
+			assert.ok(fixtures.category, 'Down-delete preserves unrelated remote Category');
+			assert.equal(fixtures.event, undefined);
+			assert.equal(fixtures.plugin, undefined);
+		});
 	}
 	finally {
 		const cleanupErrors = [];

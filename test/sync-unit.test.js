@@ -15,26 +15,30 @@ const script = `
 	const options = JSON.parse(process.argv[1]);
 	cli.args.quiet = options.quiet !== false;
 	const sync = require('./lib/sync.js');
+	const bucketSync = require('./lib/sync-buckets.js');
 	if (options.setupCwd) process.chdir(options.setupCwd);
 	const calls = [];
 	const requests = [];
 	const apiOptions = [];
 	const app = {
 		...sync,
+		...bucketSync,
 		args: options.args,
 		config: {
 			base_url: 'https://fixture.invalid',
 			sync: options.config || {},
 			ui: {
-				list_list: ['categories', 'events', 'plugins'].map(id => ({ id })),
-				data_types: { category: { list: 'categories' }, event: { list: 'events' }, plugin: { list: 'plugins' } }
+				list_list: (options.includeBuckets ? ['buckets', 'categories', 'events', 'plugins'] : ['categories', 'events', 'plugins']).map(id => ({ id })),
+				data_types: { bucket: { list: 'buckets' }, category: { list: 'categories' }, event: { list: 'events' }, plugin: { list: 'plugins' } }
 			}
 		},
-		state: {},
+		state: options.state || {},
+		buckets: options.buckets || [],
 		categories: options.categories || [],
 		events: options.events || [],
 		plugins: options.plugins || [],
 		version: 'test',
+		xyopsVersion: '1.1.2',
 		dry: !!options.args.dry,
 		color() { return cli.chalk.white; },
 		markdown(text) { return text; },
@@ -95,6 +99,15 @@ function runSync(t, options) {
 				items: [{ type: source.type, data: source.data }]
 			});
 			fs.writeFileSync(file, contents);
+			if (source.bucketFiles) {
+				var bucket_dir = file.replace(/\.json$/i, '');
+				fs.mkdirSync(Path.join(bucket_dir, 'files'), { recursive: true });
+				fs.writeFileSync(Path.join(bucket_dir, 'data.json'), JSON.stringify(source.bucketData || {}));
+				for (const [name, contents] of Object.entries(source.bucketFiles)) {
+					fs.writeFileSync(Path.join(bucket_dir, 'files', name), contents);
+				}
+				if (source.bucketExtra) fs.writeFileSync(Path.join(bucket_dir, source.bucketExtra), 'keep');
+			}
 		});
 	}
 	if (options.missingDir) args.other = [Path.join(dir, 'missing')];
@@ -189,16 +202,16 @@ test('sync update guard rejects malformed confirmation values', async () => {
 	);
 });
 
-test('sync rejects deletion with down-only, two-way, or mixed directions before writes', t => {
+test('sync rejects deletion without exactly one direction before writes', t => {
 	for (const args of [
-		{ down: 'categories', delete: 'categories' },
 		{ up: 'categories', down: 'categories', delete: 'categories', dry: true },
 		{ up: 'categories', down: 'events', delete: 'categories' },
-		{ up: [], delete: 'categories' }
+		{ up: [], delete: 'categories' },
+		{ down: [], delete: 'categories' }
 	]) {
 		const result = runSync(t, { args });
 		assert.equal(result.status, 1);
-		assert.match(result.stderr, /Delete mode requires up-only sync/);
+		assert.match(result.stderr, /Delete mode requires exactly one sync direction/);
 		assert.deepEqual(result.report.calls, []);
 	}
 });
@@ -216,6 +229,101 @@ test('sync validates inherited deletion and direction settings after CLI overrid
 	assert.equal(noDeletion.status, 0);
 	const emptyDown = runSync(t, { args: { up: 'all', down: [], delete: true } });
 	assert.equal(emptyDown.status, 0);
+});
+
+test('down-only delete removes one missing local source and its neighbors', t => {
+	const result = runSync(t, {
+		categories: [{ id: 'keep', title: 'Keep', notes: 'Same' }],
+		events: [{ id: 'missing', title: 'Same ID on another type' }],
+		existingSources: [
+			{ path: 'categories/Stale.json', type: 'category', data: { id: 'missing', title: 'Stale', notes: '(External)' } },
+			{ path: 'categories/Stale-notes.txt', contents: 'Old note\n' },
+			{ path: 'categories/Keep.json', type: 'category', data: { id: 'keep', title: 'Keep', notes: 'Same' } },
+			{ path: 'events/Other.json', type: 'event', data: { id: 'missing', title: 'Same ID on another type' } }
+		],
+		args: { down: 'categories', delete: 'categories', down_cmd: getSetupMarkerCommand('completed.txt') }
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Stale.json')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Stale-notes.txt')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Keep.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'events/Other.json')), true);
+	assert.equal(fs.readFileSync(Path.join(result.dir, 'completed.txt'), 'utf8'), fs.realpathSync(result.dir));
+	assert.deepEqual(result.report.requests.filter(req => req.method.startsWith('delete_')), []);
+});
+
+test('down-only delete previews local files without changing them or running down_cmd', t => {
+	const result = runSync(t, {
+		quiet: false,
+		existingSources: [
+			{ path: 'categories/Stale.json', type: 'category', data: { id: 'missing', title: 'Stale' } }
+		],
+		args: { down: 'categories', delete: 'categories', dry: true, down_cmd: getSetupMarkerCommand('completed.txt') }
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /Would delete local/);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Stale.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'completed.txt')), false);
+});
+
+test('down-only delete removes an orphan Bucket and all its local content', t => {
+	const result = runSync(t, {
+		includeBuckets: true,
+		existingSources: [
+			{ path: 'buckets/Stale.json', type: 'bucket', data: { id: 'missing', title: 'Stale' },
+				bucketData: { old: true }, bucketFiles: { 'old.txt': 'contents' } }
+		],
+		args: { down: 'buckets', delete: 'buckets' }
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'buckets/Stale.json')), false);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'buckets/Stale')), false);
+});
+
+test('down-only delete preflights all Bucket content before removing any source', t => {
+	const result = runSync(t, {
+		includeBuckets: true,
+		existingSources: [
+			{ path: 'buckets/First.json', type: 'bucket', data: { id: 'first', title: 'First' }, bucketFiles: {} },
+			{ path: 'buckets/Second.json', type: 'bucket', data: { id: 'second', title: 'Second' },
+				bucketFiles: {}, bucketExtra: 'untracked.txt' }
+		],
+		args: { down: 'buckets', delete: 'buckets' }
+	});
+	assert.equal(result.status, 1);
+	assert.match(result.report.errors[0], /Local delete preflight failed/);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'buckets/First.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'buckets/First')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'buckets/Second.json')), true);
+});
+
+test('down-only delete protects local stock and Marketplace definitions', t => {
+	const result = runSync(t, {
+		existingSources: [
+			{ path: 'categories/Stock.json', type: 'category', data: { id: 'stock', title: 'Stock', stock: false } },
+			{ path: 'categories/Marketplace.json', type: 'category', data: { id: 'marketplace', title: 'Marketplace', marketplace: null } },
+			{ path: 'categories/Custom.json', type: 'category', data: { id: 'custom', title: 'Custom' } }
+		],
+		args: { down: 'categories', delete: 'categories' }
+	});
+	assert.equal(result.status, 0, result.stderr);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Stock.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Marketplace.json')), true);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Custom.json')), false);
+});
+
+test('down-only delete skips local removals after a sync-state error', t => {
+	const result = runSync(t, {
+		state: { sync: { 'category-old': true } },
+		failAPI: 'update_global_state',
+		existingSources: [
+			{ path: 'categories/Stale.json', type: 'category', data: { id: 'stale', title: 'Stale' } }
+		],
+		args: { down: 'categories', delete: 'categories' }
+	});
+	assert.equal(result.status, 1);
+	assert.match(result.report.warnings[0], /Delete pass skipped/);
+	assert.equal(fs.existsSync(Path.join(result.dir, 'categories/Stale.json')), true);
 });
 
 test('sync errors exit nonzero even in quiet mode or a dry run', t => {

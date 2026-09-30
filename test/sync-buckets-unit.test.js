@@ -127,6 +127,37 @@ test('downsync replaces changed files and preserves the server timestamp', async
 	assert.equal(fs.statSync(env.paths.data).mtimeMs / 1000, 150);
 });
 
+test('down-only bucket deletion removes local files absent from the remote manifest', async t => {
+	const keep = { filename: 'keep.txt', path: 'files/bucket/bucket_unit/key/keep.txt', size: 4, date: 80 };
+	const env = fixture(t, { localData: { keep: true }, remoteData: { keep: true }, remoteFiles: [keep] });
+	const keep_path = Path.join(env.paths.files, 'keep.txt');
+	const stale_path = Path.join(env.paths.files, 'stale.txt');
+	fs.writeFileSync(keep_path, 'keep');
+	fs.utimesSync(keep_path, 80, 80);
+	fs.writeFileSync(stale_path, 'stale');
+	
+	await env.app.syncBucketContents([env.item], { down: ['buckets'], delete: ['buckets'] });
+	assert.equal(env.app.errors.length, 0);
+	assert.equal(fs.existsSync(keep_path), true);
+	assert.equal(fs.existsSync(stale_path), false);
+	assert.equal(env.app.downSynced, true);
+	assert.deepEqual(env.calls, []);
+});
+
+test('down-only bucket deletion previews files and skips them after a failed download', async t => {
+	const remote_file = { filename: 'remote.txt', path: 'files/bucket/bucket_unit/key/remote.txt', size: 6, date: 80 };
+	for (const dry of [true, false]) {
+		const env = fixture(t, { localData: { keep: true }, remoteData: { keep: true },
+			remoteFiles: [remote_file], dry });
+		const stale_path = Path.join(env.paths.files, 'stale.txt');
+		fs.writeFileSync(stale_path, 'stale');
+		await env.app.syncBucketContents([env.item], { down: ['buckets'], delete: ['buckets'] });
+		assert.equal(fs.existsSync(stale_path), true);
+		if (dry) assert.equal(env.app.errors.length, 0);
+		else assert.match(env.app.errors[0], /Missing remote bytes/);
+	}
+});
+
 test('two-way sync chooses the newer data and file copies independently', async t => {
 	const old = { filename: 'remote.txt', path: 'files/bucket/bucket_unit/key/remote.txt', size: 6, date: 140 };
 	const env = fixture(t, {

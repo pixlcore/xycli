@@ -27,6 +27,7 @@ Browse the [screenshot gallery](docs/screenshots.md) for more views, or jump to 
 - [Global CLI switches](#global-cli-switches)
 - [Tutorial: your first Event, job, and Web Hook](docs/tutorial.md)
 - [Tutorial: two-way sync with Git](docs/two-way-git-tutorial.md)
+- [Tutorial: two-way sync with event-driven deletes](docs/two-way-delete-tutorial.md)
 - [Explore and manage xyOps](#explore-and-manage-xyops)
 - [Transfer data between systems](#transfer-data-between-systems)
 - [Sync your automation with local files](#sync-your-automation-with-local-files)
@@ -513,9 +514,11 @@ The push above updates xyOps immediately. Remove `--dry` from the pull command t
 
 Sync supports Alerts, API Keys, Categories, Channels, Events and workflows, Groups, Monitors, Plugins, Tags, and Web Hooks. It updates existing objects and files; use creation commands, imports, setup, or exports to introduce new ones. Two-way sync is experimental and uses modification times, so one-way sync is a better fit for a Git-based source of truth.
 
-Delete mode is for up-sync only: it removes eligible xyOps objects missing from your local inventory. Objects with a `stock` or `marketplace` property are always protected from deletion and need no local files. Keep a complete inventory of the other objects you intend to retain for each selected type, and review a dry run before applying it. Sync applies changes without a confirmation step unless you use `--dry`.
+Delete mode works in one direction per run. Up-only deletion removes eligible xyOps objects missing from your local inventory; down-only deletion removes local XYPDF definitions and Bucket files missing from xyOps. Objects with a `stock` or `marketplace` property are protected from deletion. Keep a complete inventory on the authoritative side for each selected type, and review a dry run before applying it. Sync applies changes without a confirmation step unless you use `--dry`.
 
 Follow the [Two-Way Git Sync Tutorial](docs/two-way-git-tutorial.md) to connect one persistent checkout to a shared repository, commit downloaded changes, discover new Events, and schedule the complete workflow with cron or xySat.
+
+For an event-driven workflow that deletes in both directions, creates new definitions only in xyOps, and uses no recurring sync schedule, follow the [Two-Way Git Sync with Event-Driven Deletes Tutorial](docs/two-way-delete-tutorial.md).
 
 Read the dedicated [Sync Guide](docs/sync.md) for setup, file layouts, every option, saved defaults, two-way sync, deletion, notifications, and automation with cron, Git hooks, and GitHub Actions.
 

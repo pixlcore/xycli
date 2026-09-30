@@ -108,7 +108,9 @@ This considers both directions for every local Event and workflow source:
 - A newer xyOps definition is downloaded to its existing local file.
 - Identical definitions are left alone.
 
-The `--delete false` switch is intentional. Two-way sync does not propagate deletions. Keep deletion disabled in the scheduled command, and follow the [coordinated deletion steps](#delete-a-definition-from-both-sides) when retiring an item.
+The `--delete false` switch is intentional. A single command with both directions does not propagate deletions. Keep deletion disabled in this scheduled command, and follow the [coordinated deletion steps](#delete-a-definition-from-both-sides) when retiring an item. Separate one-way [up and down delete modes](sync.md#delete-mode) are available for workflows that can coordinate their triggers and inventories.
+
+If you want deletion in both directions without a recurring schedule, use the separate [event-driven two-way delete tutorial](two-way-delete-tutorial.md).
 
 Review the displayed diffs carefully. If the wrong side would win, check the clocks and file modification times before continuing.
 

@@ -115,6 +115,42 @@ test('bucket filesystem sync', async t => {
 			assert.equal(Math.floor(fs.statSync(file).mtimeMs / 1000), remoteFile.date);
 			assert.equal(Math.floor(fs.statSync(dataFile).mtimeMs / 1000), bucket.meta.mod);
 		});
+		
+		await check('down-only delete removes a local Bucket file absent from xyOps', async () => {
+			const content = Path.join(activeRoot, 'buckets', slug);
+			const extra = Path.join(content, 'files', 'LocalOnly.txt');
+			fs.writeFileSync(extra, 'only in the local sync tree');
+			const before = await call('getBucket', { id });
+			
+			const preview = xy(['sync', activeRoot, '--up', 'false', '--down', 'buckets', '--delete', 'buckets', '--dry']);
+			assert.match(preview, /Would delete local bucket file/);
+			assert.ok(fs.existsSync(extra), 'Dry run preserves the local file');
+			
+			const output = xy(['sync', activeRoot, '--up', 'false', '--down', 'buckets', '--delete', 'buckets']);
+			assert.match(output, /Deleting local bucket file/);
+			assert.ok(!fs.existsSync(extra), 'Missing remote file was removed locally');
+			assert.ok(fs.existsSync(Path.join(content, 'files', 'seed.json')), 'Existing remote file remains');
+			assert.deepEqual((await call('getBucket', { id })).files, before.files, 'Remote Bucket files are unchanged');
+		});
+		
+		await check('down-only delete removes a deleted Bucket and its local content', async () => {
+			const source = Path.join(activeRoot, 'buckets', slug + '.json');
+			const content = Path.join(activeRoot, 'buckets', slug);
+			await call('deleteBucket', { id });
+			created = false;
+			assert.ok(fs.existsSync(source), 'Local source remains before down-delete');
+			assert.ok(fs.existsSync(content), 'Local content remains before down-delete');
+			
+			const preview = xy(['sync', activeRoot, '--up', 'false', '--down', 'buckets', '--delete', 'buckets', '--dry']);
+			assert.match(preview, /Would delete local bucket/);
+			assert.ok(fs.existsSync(source), 'Dry run preserves the Bucket source');
+			assert.ok(fs.existsSync(content), 'Dry run preserves Bucket content');
+			
+			const output = xy(['sync', activeRoot, '--up', 'false', '--down', 'buckets', '--delete', 'buckets']);
+			assert.match(output, /Deleting local bucket/);
+			assert.ok(!fs.existsSync(source), 'Deleted Bucket source was removed');
+			assert.ok(!fs.existsSync(content), 'Deleted Bucket content was removed');
+		});
 	}
 	finally {
 		// Ordinary sync writes a shared management map. Restore it exactly, then

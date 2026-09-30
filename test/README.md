@@ -66,10 +66,10 @@ node --test test/config.test.js test/sync-buckets-unit.test.js test/sync-unit.te
 | `secrets` | Vault metadata, assignments, redacted previews, full field replacement, confirmed decryption, deletion, validation, help |
 | `servers` | Active and recently offline lists, local filters, installer generation, historical search, live and historical Server details, charts, processes, connections, pagination, validation, help |
 | `system` | Admin dashboard, conductors, connected users, export, maintenance, optimization, rate resets, diagnostics, broadcasts, help |
-| `sync` | Setup export, isolated filesystem discovery, external property files, dry-run, upsync, downsync, composite global-state governance, no-op detection, and guarded delete mode |
-| `sync-buckets` | Disposable Bucket setup, JSON replacement, file upload and download, and timestamp alignment on xyOps 1.1.2 or later |
+| `sync` | Setup export, isolated filesystem discovery, external property files, dry-run, upsync, downsync, composite global-state governance, no-op detection, up-only deletion, and down-only Event and Plugin file deletion |
+| `sync-buckets` | Disposable Bucket setup, JSON replacement, file upload and download, timestamp alignment, and down-only local file and whole-Bucket deletion on xyOps 1.1.2 or later |
 | `sync-buckets-unit` | Offline Bucket version gating, content setup, upload and download, timestamp alignment, and pre-delete safety |
-| `sync-unit` | Offline setup extension fallbacks, new-only exports and setup completion commands, PID locking and stale recovery, up-only deletion guards, pre-delete failure blocking, stock/Marketplace deletion protection, inherited settings and CLI overrides, warning/error exit status, duplicates, quiet/dry runs, completion failures, and notification delivery after warnings or errors |
+| `sync-unit` | Offline setup extension fallbacks, new-only exports and setup completion commands, PID locking and stale recovery, one-way deletion guards, pre-delete failure blocking, stock/Marketplace deletion protection, inherited settings and CLI overrides, warning/error exit status, duplicates, quiet/dry runs, completion failures, and notification delivery after warnings or errors |
 | `tags` | CRUD, metadata search, sparse future-proof updates, JSON input, validation, pagination, help |
 | `tickets` | Search, CRUD, number resolution, comments, attachment uploads/downloads, Events, related Job lookup, sparse updates, validation, help |
 | `toast` | Warning-box word wrapping and terminal-width limits |

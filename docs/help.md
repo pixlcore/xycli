@@ -188,7 +188,7 @@ Your configured permissions still apply during import. If an item fails, import 
 
 ## sync
 
-For setup, configuration, file layouts, and automation examples, see the dedicated [Filesystem Sync Guide](sync.md).
+For setup, configuration, file layouts, and automation examples, see the dedicated [Filesystem Sync Guide](sync.md). For separate Git- and xyOps-triggered delete passes, see the [event-driven two-way delete tutorial](two-way-delete-tutorial.md).
 
 Sync existing xyOps definitions with a directory of XYPDF files. Each run scans the directory and its subdirectories, shows any differences, and applies changes in the directions you select. **Changes are applied immediately unless you add `--dry`; there is no `--confirm` step.**
 
@@ -225,20 +225,22 @@ Repeated sources with the same type and ID generate warnings, even if their cont
 
 External string properties are loaded automatically from adjacent files named `BASENAME-PROPERTY.EXT`, such as `My-Plugin-script.js` beside `My-Plugin.json`, or `My-Event-params.script.sh` beside `My-Event.json`. The extension is your choice. Keep only one external file per property, and rename its basename along with the JSON file.
 
-Bucket metadata uses a normal XYPDF source. For a Bucket titled `My Bucket Name`, its separate JSON data and uploaded files live beside `buckets/My-Bucket-Name.json` in `buckets/My-Bucket-Name/data.json` and `buckets/My-Bucket-Name/files/`. Both `data.json` and `files/` are required for a selected local bucket. Bucket data upsync replaces the entire remote data object. Bucket files are matched by xyOps filename normalization and transferred according to size and modification time. Two-way bucket sync uses the data record and file timestamps from xyOps; a transfer updates local file times to match. Bucket files missing locally are deleted remotely only with up-only `--delete buckets`.
+Bucket metadata uses a normal XYPDF source. For a Bucket titled `My Bucket Name`, its separate JSON data and uploaded files live beside `buckets/My-Bucket-Name.json` in `buckets/My-Bucket-Name/data.json` and `buckets/My-Bucket-Name/files/`. Both `data.json` and `files/` are required for a selected local bucket. Bucket data upsync replaces the entire remote data object. Bucket files are matched by xyOps filename normalization and transferred according to size and modification time. Two-way bucket sync uses the data record and file timestamps from xyOps; a transfer updates local file times to match. Up-only `--delete buckets` removes remote files missing locally; down-only `--delete buckets` removes local files missing remotely.
 
 **Delete mode**
 
-Add `--delete TYPES` to delete xyOps objects that have no matching source in the scanned directories. Deletion requires up-only sync and a complete local inventory. The CLI rejects deletion if upsync is disabled or any downsync direction is enabled, including saved defaults and dry runs. Use `--down false` to disable inherited downsync. See [Delete mode](sync.md#delete-mode) before using it.
+Add `--delete TYPES` to remove definitions missing from the authoritative side of a one-way sync. With `--up` only, it deletes xyOps objects missing from the local tree. With `--down` only, it deletes local XYPDF sources missing from xyOps, plus their external property files. The CLI rejects deletion when both directions or neither direction are enabled, including saved defaults and dry runs. Use `--up false` or `--down false` to disable an inherited direction. See [Delete mode](sync.md#delete-mode) before using it.
 
 ```sh
 xy sync ./ --up events,plugins --delete events --dry
 xy sync ./ --up events,plugins --delete events
+xy sync ./ --up false --down events,plugins --delete events,plugins --dry
+xy sync ./ --up false --down events,plugins --delete events,plugins
 ```
 
-**Objects with a `stock` or `marketplace` property are always ignored by deletion**, including during dry runs. They do not need local source files, and setup inclusion flags cannot override this protection.
+**Objects with a `stock` or `marketplace` property are ignored by deletion**, including during dry runs. Upward deletion checks the xyOps definition; downward deletion checks the local XYPDF. Setup inclusion flags cannot override this protection.
 
-**The scanned directories must contain a complete inventory of the other objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing file, incomplete export, or unavailable mount can cause unintended deletions of your own definitions. Verify that all source directories are available and inspect a dry run before removing `--dry`. Source warnings or scan errors stop the run before any updates begin. If an update or sync-tracking API operation fails, earlier successful updates remain in place, but the entire delete pass is skipped for that run.
+**The authoritative side must have a complete inventory of the objects you intend to keep for every type selected for deletion.** Delete mode is not limited to previously synced objects. A missing local file can delete a remote object during upsync; a new local file not yet created in xyOps can be deleted during downsync. Ensure the API Key can see the complete remote inventory, review a dry run, and coordinate separate up and down jobs before enabling automatic deletion. Warnings or errors before the delete phase skip that phase; earlier successful updates remain in place.
 
 **System Hook deletions**
 
@@ -265,7 +267,7 @@ xy sync ./ --up events,plugins \
 - `--error_email ADDRESS` sends warnings and errors by email through xyOps.
 - `--error_event EVENT_ID` runs an Event on warnings or errors.
 
-Completion commands run in a local shell in the first base directory. Successful up-only deletion triggers `up_cmd`; local System Hook deletion triggers an explicitly supplied `down_cmd`. Event notifications receive `input.data.errors` and `input.data.warnings`.
+Completion commands run in a local shell in the first base directory. Successful up-only deletion triggers `up_cmd`; down-only and System Hook deletions trigger `down_cmd` when it is configured. Event notifications receive `input.data.errors` and `input.data.warnings`.
 
 The configured API Key needs the appropriate resource permissions and `update_state` for sync tracking updates. Notification actions also need their usual permissions. Earlier successful changes are not rolled back if a later operation fails. Retry the sync after correcting an error; previously applied updates compare equal, and deletion remains disabled until the pre-delete phase completes without warnings or errors.
 

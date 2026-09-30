@@ -40,9 +40,11 @@ Sync has two directions. **Up** sends local definitions to xyOps. **Down** write
 
 **Sync applies changes immediately. There is no confirmation step.** Add `--dry` to preview a run before allowing it to change xyOps or your files.
 
-Sync updates *changes* to objects that already exist on both sides. It does not create new xyOps objects, generate local files for newly created objects (except during [setup](#set-up-your-first-sync-tree)), or remove local files when objects disappear from xyOps. Use resource creation commands or imports to create objects, and setup or exports to introduce their local files.
+Sync updates *changes* to objects that already exist on both sides. It does not create new xyOps objects or generate local files for newly created objects (except during [setup](#set-up-your-first-sync-tree)). Use resource creation commands or imports to create objects, and setup or exports to introduce their local files. One-way [delete mode](#delete-mode) can remove definitions missing from the authoritative side.
 
 For a Git-based deployment workflow, start with up-only sync. A fresh checkout is a good source for an explicit push, but its filesystem timestamps are not reliable evidence for two-way conflict decisions.
+
+For two-way deletion driven by accepted Git pushes and xyOps System Activity triggers, see the [event-driven two-way delete tutorial](two-way-delete-tutorial.md).
 
 ## Supported resources and requirements
 
@@ -70,7 +72,7 @@ Secret Vaults, Users, and Roles are not supported by sync. Individual workers, j
 
 ### Permissions
 
-Your API Key needs permission to read the definitions you scan and to edit each type you push. Delete mode additionally requires the corresponding delete privileges. Resource restrictions, such as Category and Group access, still apply.
+Your API Key needs permission to read the definitions you scan and to edit each type you push. Up-only delete mode additionally requires the corresponding delete privileges. Down-only deletion removes local files and does not call the remote delete APIs. Resource restrictions, such as Category and Group access, still apply.
 
 Sync also maintains remote-management tracking which requires the [update_state](https://docs.xyops.io/privileges/update_state) privilege. A pull or two-way run can update this tracking too. Notification email requires the [send_emails](https://docs.xyops.io/privileges/send_emails) privilege; an error Event requires the [run_jobs](https://docs.xyops.io/privileges/run_jobs) privilege, permission to use that Event's resources, and an enabled manual trigger.
 
@@ -153,7 +155,7 @@ Setup normally omits objects marked as stock or installed from the Marketplace. 
 xy sync setup all --stock --marketplace --file_props script,params.script
 ```
 
-These switches are optional export choices, not requirements for delete mode. Objects with a `stock` or `marketplace` property are always excluded from sync deletion, even when they have no local file. Leave Marketplace Plugins managed by the Marketplace and its upgrade system; a standard sync tree can focus on definitions you maintain yourself.
+These switches are optional export choices, not requirements for delete mode. Up-only deletion excludes remote objects marked `stock` or `marketplace`. Down-only deletion excludes local sources carrying either property. Leave Marketplace Plugins managed by the Marketplace and its upgrade system; a standard sync tree can focus on definitions you maintain yourself.
 
 ### Rerun setup carefully
 
@@ -393,9 +395,9 @@ Relative paths resolve against the CLI's current working directory. Completion c
 | --- | --- | --- | --- |
 | `--up TYPES` | `sync.up` | Disabled | Sync upwards to xyOps from local sources for these types. |
 | `--down TYPES` | `sync.down` | Disabled | Down downwards to existing local sources from xyOps for these types. |
-| `--delete TYPES` | `sync.delete` | Disabled | Delete remote objects with no local source. Use only in an up-only workflow; see [Delete mode](#delete-mode). |
+| `--delete TYPES` | `sync.delete` | Disabled | Delete definitions missing from the sole enabled direction's authoritative side. Requires up-only or down-only sync; see [Delete mode](#delete-mode). |
 | `--syshook ACTION` | n/a | Disabled | Handle one supported definition deletion activity from STDIN as a local-only deletion; see [System Hook deletion](#system-hook-deletion). |
-| `--ignore_missing` | `sync.ignore_missing` | Off | Skip local sources whose type and ID are absent from xyOps, without a warning or failure. Leave their files untouched. |
+| `--ignore_missing` | `sync.ignore_missing` | Off | Skip local sources whose type and ID are absent from xyOps, without a warning or failure. Down-only deletion takes precedence for types selected by `--delete`. |
 | `--up_cmd COMMAND` | `sync.up_cmd` | None | Run a local shell command after at least one successful upsync. |
 | `--down_cmd COMMAND` | `sync.down_cmd` | None | Run a local shell command after at least one successful downsync, or an explicit command after a System Hook deletion. |
 | `--cmd_timeout SECONDS` | `sync.cmd_timeout` | `30` | Timeout for each completion command. |
@@ -453,13 +455,13 @@ For automatic two-way operation, use a persistent tree and run every minute. Bot
 
 ### Remove a definition during two-way sync
 
-Two-way sync does not propagate deletions. Definition deletions are usually infrequent, so coordinating them manually is generally practical. Keep `--delete false` in the scheduled command, and remove a definition from both sides deliberately:
+One command with both sync directions does not propagate deletions. Keep `--delete false` in a scheduled two-way command, and remove a definition from both sides deliberately:
 
 1. Delete the definition in the xyOps web interface first.
 2. Remove its local XYPDF JSON file and any neighboring external property files. If the tree is stored in Git, commit and push their removal so the dedicated sync checkout receives the deletion.
 3. Run sync again, or resume the schedule, after the local files are gone. Without `--ignore_missing`, pause the schedule during these steps if you want to avoid a failed pass between the two removals.
 
-If a sync runs after the xyOps deletion but before local cleanup, the leftover source normally produces a missing-object warning and stops the run before any definition changes. Add `--ignore_missing` to ordinary sync and any following `sync setup --new` command to skip that source and keep processing other definitions. This does not remove the local files or propagate the deletion to Git. Remove those files yourself to complete the deletion. Other scan warnings and errors still stop the run.
+If a sync runs after the xyOps deletion but before local cleanup, the leftover source normally produces a missing-object warning and stops the run before any definition changes. Add `--ignore_missing` to ordinary sync and any following `sync setup --new` command to skip that source and keep processing other definitions. This does not remove the local files or propagate the deletion to Git. Remove those files yourself to complete the deletion. Other scan warnings and errors still stop the run. For an event-driven workflow with one authoritative direction per run, see [Delete mode](#delete-mode).
 
 Do not remove the Git files first while the definition still exists in xyOps. A scheduled `sync setup --new` pass can export the still-existing definition back into the repository. See the [Two-Way Git Sync Tutorial](two-way-git-tutorial.md#delete-a-definition-from-both-sides) for the Git workflow.
 
@@ -523,9 +525,15 @@ Make sure only one sync instance talks to one xyOps installation.
 
 ## Delete mode
 
-Delete mode treats missing local definitions as a request to delete them **in xyOps**. Use it exclusively with an up-only source of truth. It is not a way to clean local files during downsync, and it does not provide two-way deletion propagation.
+Delete mode removes definitions missing from the authoritative side of a **one-way** sync. With `--up` only, it deletes xyOps definitions that have no local XYPDF source. With `--down` only, it deletes local XYPDF sources that have no matching visible xyOps definition, along with their external property files. Select the affected resource types with `--delete TYPES`. The CLI rejects deletion if both directions, or neither direction, are enabled, including directions inherited from saved configuration. A single two-way sync command cannot use delete mode.
 
-### Prepare a complete inventory
+The chosen direction applies to every missing definition of the selected types. A newly added Git file that has not yet been imported into xyOps looks the same as a definition deleted in xyOps, so a down-only delete run removes that file. Likewise, an xyOps definition that has not yet been exported looks the same as one deleted from Git to an up-only delete run. Coordinate Git-triggered and xyOps-triggered jobs so they do not overlap or process pending changes out of order. A host-local PID lock cannot serialize jobs on different machines.
+
+The [event-driven two-way delete tutorial](two-way-delete-tutorial.md) shows separate authoritative triggers for Git pushes, xyOps updates and deletions, and xyOps creations.
+
+### Up-only deletion
+
+#### Prepare a complete inventory
 
 The scanned directories must contain a source for **every other remote object of each type selected for deletion** that you intend to keep. Delete mode considers all eligible objects in the visible remote collection, not just objects previously synced or carrying a remote-management warning.
 
@@ -541,7 +549,7 @@ xy sync setup events plugins categories
 
 Verify that every object eligible for deletion that you intend to keep has a corresponding source, including workflows under the `events` selection. Stock and Marketplace objects may be omitted. Avoid filename collisions, omitted resources, missing mounts, and hidden source directories.
 
-### Preview a deliberate deletion
+#### Preview a deliberate deletion
 
 Remove the source file(s) for the Event you intend to delete, then preview from the complete inventory:
 
@@ -559,9 +567,24 @@ Deleting an Event does not automatically remove its dependencies. Remote API rul
 
 Deletion only begins after every update has completed and the sync-tracking state has been written without warnings or errors. If either phase fails, the entire delete pass is skipped for that run. Earlier successful updates remain in place, so correct the error and retry; definitions already updated will compare equal. Once deletion begins, successful earlier deletions are not rolled back if a later deletion fails.
 
-With `--delete buckets`, a remote Bucket file missing from a selected local Bucket's `files/` directory is deleted individually. Removing the Bucket XYPDF source deletes the whole Bucket, including all its data and files. A missing or invalid `data.json`, incomplete file inventory, or failed transfer prevents Bucket file deletion and the whole-object delete pass.
+With up-only `--delete buckets`, a remote Bucket file missing from a selected local Bucket's `files/` directory is deleted individually. Removing the Bucket XYPDF source deletes the whole Bucket, including all its data and files. A missing or invalid `data.json`, incomplete file inventory, or failed transfer prevents Bucket file deletion and the whole-object delete pass.
 
 An unavailable base directory stops the scan, but an existing empty directory can look like an empty inventory. Do not treat that guard as protection against an empty mount, accidental file removal, or missing exports of your own definitions.
+
+### Down-only deletion
+
+Run a down-only pass when xyOps should determine which local definitions remain. Specify the full local sync tree, and use `--up false` if saved configuration would otherwise enable upsync:
+
+```sh
+xy sync /srv/xyops-sync --up false --down events,plugins --delete events,plugins --dry
+xy sync /srv/xyops-sync --up false --down events,plugins --delete events,plugins --down_cmd ./commit-downloads.sh
+```
+
+Down-only deletion removes matching local XYPDF sources and their validated external property files. It matches by item type and exact ID, not filename. A missing local source is not created by ordinary downsync; run `xy sync setup TYPES --new` separately to export newly created xyOps definitions. Setup runs from the current directory, so run it from the sync tree's root.
+
+For Buckets, down-only `--delete buckets` also removes local uploaded files absent from an existing remote Bucket. If the entire Bucket is absent from xyOps, it removes the local Bucket XYPDF, `data.json`, and uploaded files, then removes the empty content directories. Unexpected content in a Bucket directory stops the whole-object local delete pass. Stock and Marketplace markers in a local XYPDF exclude that definition from deletion.
+
+The local delete pass starts only after the source scan, definition downloads, sync-state update, and Bucket content pass finish without warnings or errors. It checks every candidate before removing any whole-object files. A successful local deletion triggers `down_cmd`, including when there was no ordinary download. If a later file removal fails, earlier removals remain and the run exits nonzero; inspect the tree and retry.
 
 Keep deletion disabled in general-purpose cron, Git hooks, and CI until you have a deliberate policy for maintaining and checking the complete inventory. Disable saved deletion for other runs with `--delete false`.
 
@@ -585,7 +608,7 @@ xy sync ./ --down events,plugins --down_cmd "./commit-downloads.sh" --cmd_timeou
 ### When commands run
 
 - `up_cmd` runs if at least one object was successfully upsynced (this includes deletes).
-- `down_cmd` runs if at least one object was successfully downsynced. In `--syshook` mode, an explicitly supplied `down_cmd` runs after the matching local files are deleted.
+- `down_cmd` runs if at least one object was successfully downloaded or locally deleted by down-only sync. In `--syshook` mode, an explicitly supplied `down_cmd` runs after the matching local files are deleted.
 - During setup, an explicitly supplied `down_cmd` runs if at least one definition was written.
 - If both apply, `up_cmd` runs first, then `down_cmd`.
 - Neither runs for an identical/no-op run, a scan that stopped before changes, or a dry run.
@@ -978,13 +1001,13 @@ Repository concurrency controls these workflow runs. Coordinate all writers to t
 | The wrong directory is scanned | Positional paths take precedence, followed by `base_dirs`, then the current directory. Check your command and config; use absolute paths in automation. |
 | A config override seems to vanish | The user file replaces a system `sync` object as a whole. Environment settings take precedence over files. See [configuration](#configuration-and-option-reference). |
 | An object is missing from the local tree | Ordinary downsync does not discover it. Export that object or run setup in a separate staging directory. |
-| A source cannot find its remote object | Match its exact `type` and `data.id` to an existing visible object in this xyOps installation. Create/import missing objects separately. |
+| A source cannot find its remote object | Match its exact `type` and `data.id` to an existing visible object in this xyOps installation. Create/import missing objects separately, or use down-only delete mode if xyOps is authoritative and the local source should be removed. |
 | A duplicate-source warning stops sync | Keep one file per resource type and ID, even when the copies are identical. Remove duplicates and avoid overlapping base directories, then retry. |
 | One bad file stops unrelated updates | The scan validates all JSON sources before applying changes. Fix malformed JSON, multi-item XYPDF, unsupported types, missing objects, or unreadable property files. |
 | A script edit has no effect | Check the matching JSON stem, property suffix, filename extension, and property path. Hidden paths are skipped. |
 | Two-way sync overwrites an unexpected side | Compare the remote modification time with the newest JSON/property-file mtime. Fresh checkouts, clock skew, or touched files can make local sources appear newer. |
 | An Event or workflow does not execute | Sync saves definitions; it does not run them. Use `xy run EVENT_ID` separately. |
-| `down_cmd` does not run | Normal sync requires a successful download. Setup requires at least one written definition and an explicit `--down_cmd`. No-op and dry runs do not trigger it. |
+| `down_cmd` does not run | Normal sync requires a successful download or down-only deletion. Setup requires at least one written definition and an explicit `--down_cmd`. No-op and dry runs do not trigger it. |
 | A download commit launches another sync | Disable deployment Git hooks for commits made by `down_cmd`. The nested sync will otherwise be rejected by the built-in PID lock. |
 | Sync reports another PID is running | Another local sync owns the lock. Let it finish. If the PID is no longer alive, the next run recovers the stale file automatically. If the PID belongs to an unrelated recycled process, verify that no sync is active before removing the reported lock file. |
 | A scheduled run prints nothing | `--quiet` suppresses routine output. Warnings and errors still print to standard error. Check that the scheduler captures it. |
@@ -1002,7 +1025,7 @@ Before important deployments, review a dry run, retain recoverable versions of b
 
 Sync uses IDs rather than titles or filenames, and does not remap IDs for a different xyOps installation. Duplicate sources for the same type and ID generate warnings and stop the run before changes; keep one source per object and avoid overlapping base directories. Split inventories by ownership when useful, but remember that each run replaces the shared up-only remote-management tracking map rather than combining independent jobs' maps.
 
-New remote objects, objects removed remotely, filename changes, and dependency ordering need explicit maintenance. Deletion remains an up-only workflow with a complete inventory. Two-way sync remains experimental and resolves whole objects by modification time, without a merge or conflict prompt.
+New definitions still require explicit creation or setup export. Deletion requires separate one-way runs with a complete inventory on the authoritative side. Two-way sync remains experimental and resolves existing whole objects by modification time, without a merge or conflict prompt.
 
 - **Command reference:** [Sync](help.md#sync), [Sync setup](help.md#sync-setup), [Exports](help.md#export), [Imports](help.md#import), and [Run](help.md#run).
 - **Learn more about xyOps:** [xyOps Portable Data Format](https://docs.xyops.io/xypdf) and [xyOps API Keys](https://docs.xyops.io/api#api-keys).
