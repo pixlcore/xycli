@@ -24,6 +24,9 @@
 		"test:offline": "node --test test/config.test.js test/help.test.js test/markdown.test.js test/sync-buckets-unit.test.js test/sync-syshook-unit.test.js test/sync-unit.test.js test/toast.test.js test/upgrade.test.js test/utils-unit.test.js",
 		"changelog": "node tools/changelog.js"
 	},
+	"overrides": {
+		"basic-ftp": "6.2.1"
+	},
 	"dependencies": {
 		"@pixlcore/xyops-sdk": "^1.0.7",
 		"cli-highlight": "2.1.11",
