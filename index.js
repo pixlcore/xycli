@@ -14,6 +14,16 @@ const Uncatch = require('uncatch');
 const cli = require('pixl-cli');
 const pkg = require('./package.json');
 
+// MCP owns its streams and lifecycle. Enter before pixl-cli installs terminal
+// output, signal handlers, or argument expansion that could consume stdin.
+if (process.argv[2] === 'mcp') {
+	require('./lib/mcp.js').main(process.argv.slice(3)).catch(function(err) {
+		process.stderr.write('xy mcp: ' + err.message + '\n');
+		process.exitCode = 1;
+	});
+	return;
+}
+
 if (!process.env.XYOPS_USER_AGENT) {
 	process.env.XYOPS_USER_AGENT = `xyOps CLI v${pkg.version} (Node.js); ${os.hostname()} (${os.platform()}/${os.arch()})`;
 }
@@ -79,7 +89,7 @@ const TOP_LEVEL_COMMANDS = [
 	'plugins', 'plugin', 'servers', 'server', 'secrets', 'secret',
 	'snapshots', 'snapshot', 'tags', 'tag', 'tickets', 'ticket',
 	'hooks', 'hook', 'marketplace',
-	'import', 'api', 'repl'
+	'import', 'api', 'repl', 'mcp'
 ];
 
 // coerce true/false into booleans

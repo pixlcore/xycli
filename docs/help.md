@@ -25,6 +25,8 @@ xy tickets
 xy hooks
 xy marketplace
 xy upgrade
+xy mcp stdio
+xy mcp serve --port 8080
 xy event EVENT_ID --export event.json
 xy import event.json
 xy sync ./ --up events,plugins --dry
@@ -393,6 +395,8 @@ xy config --base_url http://localhost:5522 --api_key YOUR_API_KEY
 Updates load the user file separately and apply only the settings specified on the command line, preserving other user settings. System settings and environment overrides are not copied into the file. If the user file does not exist, it is created with only the supplied settings.
 
 Configuration loads the machine file first, then the user file, then `XYOPS_`-prefixed environment variables. The machine and user files are `/etc/xyops/cli.json` and `~/.config/xyops/cli.json` on Unix and macOS, or `%PROGRAMDATA%\xyops\cli.json` and `%USERPROFILE%\.config\xyops\cli.json` on Windows. Later sources override matching top-level settings. Environment overrides still take precedence over saved user settings. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
+
+Environment values that look like JSON objects or arrays are parsed automatically for any setting. For example, `XYOPS_SYNC='{"up":["events"],"down":false}'` supplies a structured `sync` setting. Boolean and numeric values keep their usual conversions. Malformed JSON-looking values report the environment variable name. Objects and arrays are serialized as JSON when the CLI exports its effective configuration back into the environment.
 
 ## doc
 
@@ -2635,3 +2639,22 @@ Default output shows complete bracket-delimited log lines using the server's con
 The search selects the last N matches before applying the display order, so `--sort date_asc` does not select the earliest N matches. There is no numbered pagination; use `--rows` rather than `--limit`, `--offset`, or `--page`. The summary's total row count includes non-matching lines.
 
 Missing logs or archives return an empty result. `--dry` previews the search. To view a particular Job's output instead, use `xy job log JOB_ID`.
+
+# mcp
+
+Connect AI applications to xyOps using xyOps API keys. Requires Node.js 20 or newer.
+
+```sh
+xy mcp stdio
+xy mcp serve --port 8080
+xy mcp stdio --read-only
+xy mcp serve --port 8443 --tls-cert /path/to/server.crt --tls-key /path/to/server.key
+```
+
+STDIO is for applications that launch a local process. HTTP exposes `/mcp` on `127.0.0.1` by default. The `mcp` prefix is required; pass the port with `--port`. Use `--host` to choose another bind address. Every HTTP request requires the client's xyOps API key as a bearer token, including loopback connections. Non-loopback binds additionally require explicit `mcp.allowed_hosts`; there is no separate MCP authentication token.
+
+Both modes expose event discovery, creation, updates, deletion, execution and job inspection/search. `--read-only` omits and blocks mutation/execution tools. Every API call still uses your key's existing privileges and resource restrictions.
+
+STDIO uses your configured `XYOPS_API_KEY`. HTTP clients send their own xyOps API key as `Authorization: Bearer YOUR_XYOPS_API_KEY`; each request forwards that key to xyOps, with no fallback to the server's configured key. MCP owns stdin/stdout and does not support interactive CLI options such as `--dry` or `--format`. Diagnostics go to stderr.
+
+See [MCP Server](mcp.md) for configuration, tools, deployment and tool-authoring details.

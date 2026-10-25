@@ -21,21 +21,23 @@
 	],
 	"scripts": {
 		"test": "node test.js",
-		"test:offline": "node --test test/config.test.js test/help.test.js test/markdown.test.js test/sync-buckets-unit.test.js test/sync-syshook-unit.test.js test/sync-unit.test.js test/toast.test.js test/upgrade.test.js test/utils-unit.test.js",
+		"test:offline": "node --test test/config.test.js test/help.test.js test/markdown.test.js test/sync-buckets-unit.test.js test/sync-syshook-unit.test.js test/sync-unit.test.js test/toast.test.js test/upgrade.test.js test/utils-unit.test.js test/mcp-tools-unit.test.js test/mcp-stdio-unit.test.js test/mcp-http-unit.test.js",
 		"changelog": "node tools/changelog.js"
 	},
 	"overrides": {
 		"basic-ftp": "6.2.1"
 	},
 	"dependencies": {
-		"@pixlcore/xyops-sdk": "^1.0.7",
+		"@pixlcore/xyops-sdk": "^1.0.8",
 		"cli-highlight": "2.1.11",
 		"diff": "9.0.0",
 		"pixl-cli": "^1.1.6",
 		"html-to-text": "10.0.1",
 		"marked": "15.0.12",
 		"marked-terminal": "7.3.0",
-		"uncatch": "^1.0.4"
+		"uncatch": "^1.0.4",
+		"@modelcontextprotocol/server": "^2.4.0",
+		"@modelcontextprotocol/node": "^2.1.2"
 	},
 	"publishConfig": {
 		"access": "public"

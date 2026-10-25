@@ -134,3 +134,25 @@ test('config display shows effective environment overrides without writing the u
 	assert.doesNotMatch(output, /fixture-key/);
 	assert.equal(fs.readFileSync(fixture.file, 'utf8'), original);
 });
+
+test('config parses and exports JSON objects and arrays for any setting', t => {
+	const fixture = createConfigFixture(t, { sync: { up: ['events'] }, targets: ['server1'] });
+	const output = fixture.run([]);
+	assert.match(output, /"sync":/);
+	assert.match(output, /"targets":/);
+	
+	// Two loads verify the loader's config-to-environment round trip for any
+	// nested setting, while retaining the existing scalar conversions.
+	const script = "const loader=require('./lib/config.js'); const one={},two={}; loader.loadConfig.call(one); loader.loadConfig.call(two); process.stdout.write(JSON.stringify({ object:two.config.fixture_object,array:two.config.fixture_array,flag:two.config.fixture_flag,number:two.config.fixture_number,text:two.config.fixture_text }));";
+	const response = spawnSync(process.execPath, ['-e', script], {
+		cwd: Path.resolve(__dirname, '..'), encoding: 'utf8',
+		env: { ...process.env, XYOPS_FIXTURE_OBJECT: ' {"nested":{"enabled":true}} ', XYOPS_FIXTURE_ARRAY: '[1,"two",false]', XYOPS_FIXTURE_FLAG: 'false', XYOPS_FIXTURE_NUMBER: '2.5', XYOPS_FIXTURE_TEXT: 'ordinary string' }
+	});
+	assert.equal(response.status, 0);
+	assert.deepEqual(JSON.parse(response.stdout), { object: { nested: { enabled: true } }, array: [1, 'two', false], flag: false, number: 2.5, text: 'ordinary string' });
+	const malformed = spawnSync(process.execPath, ['-e', script], {
+		cwd: Path.resolve(__dirname, '..'), encoding: 'utf8', env: { ...process.env, XYOPS_FIXTURE_OBJECT: '{broken}' }
+	});
+	assert.notEqual(malformed.status, 0);
+	assert.match(malformed.stderr, /Failed to parse JSON from environment variable: XYOPS_FIXTURE_OBJECT/);
+});

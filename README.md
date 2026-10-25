@@ -33,6 +33,7 @@ Browse the [screenshot gallery](docs/screenshots.md) for more views, or jump to 
 - [Sync your automation with local files](#sync-your-automation-with-local-files)
 - [System operations and logs](#system-operations-and-logs)
 - [Documentation and API access](#documentation-and-api-access)
+- [MCP server for AI applications](docs/mcp.md)
 
 ## Getting started
 
