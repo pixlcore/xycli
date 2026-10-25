@@ -4,7 +4,7 @@ xyCLI connects AI applications to xyOps through the Model Context Protocol (MCP)
 
 ## Quick start
 
-First, if you haven't already done so, follow [Getting started](../README.md#getting-started) to install Node.js and xyCLI, then configure your xyOps connection and API key.
+First, if you haven't already done so, follow [Getting started](../README.md#getting-started) to install Node.js and xyCLI, then configure your xyOps connection and API key. Alternatively, use the [Docker image](#running-with-docker), which includes Node.js and xyCLI.
 
 For an application that launches a local MCP process, configure its executable as `xy` and its arguments as `mcp`, `stdio`:
 
@@ -25,6 +25,37 @@ xy mcp serve --port 8080
 Connect the client to `http://127.0.0.1:8080/mcp` and configure its `Authorization` header as `Bearer YOUR_XYOPS_API_KEY`. The `mcp` prefix is required, and the port is a named option. Stop the server with Ctrl-C.
 
 MCP requires Node.js 20 or newer. This server supports the [2026-07-28 protocol](https://blog.modelcontextprotocol.io/posts/2026-07-28/) and compatible 2025-era clients over STDIO and stateless Streamable HTTP. Legacy HTTP+SSE endpoints and persistent HTTP sessions are not provided.
+
+## Running with Docker
+
+The general-purpose `ghcr.io/pixlcore/xycli` image starts the MCP HTTP server by default. With Docker installed, this single command supplies all required server settings:
+
+```sh
+docker run --rm --init --name xycli-mcp \
+	-p 127.0.0.1:8080:8080 \
+	-e XYOPS_BASE_URL="https://xyops.example.com" \
+	-e XYOPS_MCP='{"allowed_hosts":["localhost","127.0.0.1","[::1]"]}' \
+	ghcr.io/pixlcore/xycli:latest
+```
+
+Replace `XYOPS_BASE_URL` with your xyOps URL. Connect your MCP client to `http://127.0.0.1:8080/mcp` and configure its `Authorization` header as `Bearer YOUR_XYOPS_API_KEY`. HTTP mode does not need `XYOPS_API_KEY` in the container; each client supplies its own key.
+
+The server listens on `0.0.0.0:8080` inside the container, while the example publishes it only on your host's loopback interface. For network access, configure `allowed_hosts` for the hostname your clients use, publish the appropriate interface, and provide HTTPS through a reverse proxy or the server's TLS options. `allowed_hosts` contains hostnames without port numbers, not the container's bind address.
+
+If xyOps runs on your Docker host, use `http://host.docker.internal:5522` as the base URL. On Linux, also add `--add-host=host.docker.internal:host-gateway`. `localhost` inside the container refers to the container itself.
+
+For **STDIO**, configure your MCP client to launch this command instead:
+
+```sh
+docker run --rm --init -i \
+	-e XYOPS_BASE_URL="https://xyops.example.com" \
+	-e XYOPS_API_KEY="YOUR_XYOPS_API_KEY" \
+	ghcr.io/pixlcore/xycli:latest mcp stdio
+```
+
+Keep `-i` so the client can write protocol messages to stdin, and omit `-t` so no terminal is allocated. STDIO uses the supplied API key and needs no published port or HTTP Host allowlist.
+
+Arguments after the image name replace the default `mcp serve --host 0.0.0.0 --port 8080` command. For example, append `mcp serve --host 0.0.0.0 --port 8080 --read-only` to the HTTP example for read-only access. The same image runs other CLI commands; see [Docker](../README.md#docker) for file mounts, configuration, and upgrades.
 
 ## Testing with MCP Inspector
 

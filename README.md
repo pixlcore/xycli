@@ -23,6 +23,7 @@ Browse the [screenshot gallery](docs/screenshots.md) for more views, or jump to 
 ## Contents
 
 - [Getting started](#getting-started)
+- [Docker](#docker)
 - [Configuration](#configuration)
 - [Global CLI switches](#global-cli-switches)
 - [Tutorial: your first Event, job, and Web Hook](docs/tutorial.md)
@@ -67,6 +68,25 @@ xy
 ```
 
 You should see the dashboard. If you need to set up xyOps itself, start with its [Getting Started guide](https://docs.xyops.io/start). See [API Keys](https://docs.xyops.io/api#api-keys) for authentication details and [Privileges](https://docs.xyops.io/privileges) for permissions.
+
+## Docker
+
+The `ghcr.io/pixlcore/xycli` image includes Node.js and xyCLI, so you only need Docker installed on your machine. It supports Linux AMD64 and ARM64. Images are built from the source checkout on Git tag pushes and published with the Git tag, `latest`, and a `sha-` tag.
+
+The image's entrypoint is `xy`. Pass a CLI command after the image name, for example:
+
+```sh
+docker run --rm -it \
+	-e XYOPS_BASE_URL="https://xyops.example.com" \
+	-e XYOPS_API_KEY="YOUR_API_KEY" \
+	ghcr.io/pixlcore/xycli:latest events
+```
+
+Without a command override, the container starts the MCP HTTP server. See [Running MCP with Docker](docs/mcp.md#running-with-docker) for a complete startup command and STDIO usage.
+
+The container runs as the `node` user (UID 1000), with `/workspace` as its working directory. For file exports, imports, or sync, mount your working files there with `-v "$PWD:/workspace"` and ensure that user can access them. You can also mount an existing CLI configuration file read-only at `/home/node/.config/xyops/cli.json`. Custom sync completion commands need any external programs they invoke; Git and worker tools are not bundled in this image.
+
+To upgrade, pull the new image and recreate the container. Use a specific Git tag instead of `latest` when you want to pin a release. For a local build from this repository, run `docker build -t xycli:local .` and substitute `xycli:local` in the examples.
 
 ## Configuration
 

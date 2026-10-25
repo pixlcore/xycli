@@ -1,0 +1,13 @@
+# Include only the files needed to run xyCLI and display its documentation.
+# In particular, never copy host node_modules, credentials, or test fixtures.
+*
+!package.json
+!package-lock.json
+!index.js
+!lib/
+!lib/**
+!docs/
+!docs/**
+!README.md
+!CHANGELOG.md
+!logo.webp
