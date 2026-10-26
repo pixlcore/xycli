@@ -12,7 +12,7 @@ Use an xyOps version that supports restoring API key IDs, hashes, and masks thro
 
 ## Running Tests
 
-For MCP-only coverage, run `node test.js mcp` against the configured local server. It creates disposable events and a restricted API key, runs an echo job, checks both transports, and cleans up. The offline MCP suites are included in `npm run test:offline` and use a fake upstream API plus local transport connections.
+For MCP-only coverage, run `node test.js mcp` against the configured local server. It creates disposable events, a restricted API key and a draft ticket, runs an echo job, checks both transports, exercises ticket mutations, searches alert invocations, takes server/group snapshots, and cleans up. Monitoring coverage requires a connected worker in a group with a saved monitoring sample. Ticket fixtures remain drafts to suppress notifications; only snapshots created by the MCP suite are deleted, with removal verified. The offline MCP suites are included in `npm run test:offline` and use a fake upstream API plus local transport connections.
 
 Run every suite, one at a time:
 

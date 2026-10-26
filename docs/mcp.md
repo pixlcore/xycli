@@ -107,7 +107,7 @@ xy mcp stdio --read-only
 xy mcp serve --port 8080 --read-only
 ```
 
-Read-only mode omits the four mutation/execution tools and rejects direct attempts to call them. Tool annotations describe behavior; actual xyOps privileges remain authoritative.
+Read-only mode omits all mutation/execution tools and rejects direct attempts to call them. Tool annotations describe behavior; actual xyOps privileges remain authoritative.
 
 There is no separate MCP authentication token. HTTP clients must support configured authorization headers. OAuth discovery and interactive login are not provided in this version.
 
@@ -167,14 +167,38 @@ This opens only the HTTPS listener. Restart after replacing certificate files. U
 | `run_event` | Launch an enabled event with a manual trigger, optionally supplying parameters and input data. |
 | `get_job` | Inspect job state, completion and output. Optional `fields` selects other job properties. |
 | `search_jobs` | Search completed jobs with query, pagination and sorting. |
+| `create_ticket` | Create a ticket with a subject, Markdown body and optional classification/assignment. |
+| `update_ticket` | Apply only supplied fields to a ticket by exact ID. |
+| `delete_ticket` | Permanently delete a ticket by exact ID. |
+| `comment_ticket` | Append a Markdown comment with the authenticated key as its author. |
+| `search_alerts` | Search active and historical alert invocations, rather than alert definitions. |
+| `search_snapshots` | Search server/group snapshots, optionally including verbose monitoring details. |
+| `take_snapshot` | Capture the latest monitoring data for exactly one server or group. |
+| `list_servers` | List connected workers, optionally filtering by hostname, group or enabled state. |
 
-Pages default to 25 rows, capped by `max_page_size`. Events and lookup collections are paginated locally after fetching the authorized collection; job search is paginated on the server. Each lookup collection has its own total and uses the requested offset/limit.
+Pages default to 25 rows, capped by `max_page_size`. Events, servers and lookup collections are paginated locally after fetching the authorized collection; job, alert and snapshot searches are paginated on the server. Each lookup collection has its own total and uses the requested offset/limit.
 
-Mutations require exact IDs. Creation requires an explicit `enabled` value. Ordinary events require category, plugin, targets and a server-selection algorithm. Workflows require a workflow object with nodes and connections. xyOps validates the full definition and permissions.
+Updates, deletions and executions require exact IDs. Event creation requires an explicit `enabled` value. Ordinary events require category, plugin, targets and a server-selection algorithm. Workflows require a workflow object with nodes and connections. xyOps validates the full definition and permissions.
 
-Updates preserve omitted top-level fields. Supplied objects and arrays replace their saved values, including `params`, `triggers` and `workflow`. Read the definition first and include the values you want to retain. Stale revisions are rejected instead of silently overwriting newer changes.
+Event updates preserve omitted top-level fields. Supplied objects and arrays replace their saved values, including `params`, `triggers` and `workflow`. Read the definition first and include the values you want to retain. Stale revisions are rejected instead of silently overwriting newer changes.
 
 `run_event` returns immediately with a job ID. Use `get_job` until `final` is true, or search with `event:EVENT_ID` or `tags:_error`. Launches accept parameter overrides and `input.data`, but not arbitrary event overrides, test-mode bypasses or local-file uploads.
+
+### Tickets
+
+Create a ticket with `{"ticket":{"subject":"Backup failed","body":"Investigating the logs.","type":"issue"}}`. xyOps generates its ID, number and initial history. Ticket types and statuses follow your xyOps configuration, including custom values. This initial tool set supports text and metadata; file attachments, automatic job/alert templates and attached event definitions are not exposed.
+
+Use `update_ticket` with `{"id":"TICKET_ID","changes":{"status":"closed"}}`. Omitted fields remain unchanged, while arrays such as `assignees`, `cc`, `notify` and `tags` replace their entire lists. Empty arrays clear those lists; an empty `category` or `server` clears that link. `due` is an absolute Unix timestamp in seconds (1980 or later), or `0` to clear it. Unlike events, tickets have no revision precondition, so concurrent edits to the same field can overwrite each other.
+
+Use `comment_ticket` with `{"id":"TICKET_ID","body":"The backup is working again."}`. xyOps assigns the comment author and timestamp. Create/update return ticket summaries; comment also returns the new comment. Creating, updating and commenting may send notifications according to xyOps settings. These operations require `create_tickets`, `edit_tickets` and `delete_tickets` as appropriate; comments require `edit_tickets`.
+
+### Monitoring
+
+`search_alerts` accepts queries such as `active:true`, `server:SERVER_ID` or `start:>=today`. `search_snapshots` accepts queries such as `type:group`, `groups:GROUP_ID` or `source:alert`. Both support `query`, `offset`, `limit`, `sort_by` and `sort_dir` (`1` ascending, `-1` descending), defaulting to newest IDs first. xyOps applies the API key's resource restrictions. Snapshot search omits heavy nested details unless `verbose` is `true`; use small pages with verbose results to stay within the response size limit.
+
+`list_servers` returns connected worker summaries and IDs, excluding offline servers and conductor peers. `hostname` matches a case-insensitive substring, `group` matches an exact group ID, and `enabled` filters the enabled flag.
+
+Use `take_snapshot` with either `{"server":"SERVER_ID"}` or `{"group":"GROUP_ID"}`, never both. This requires `create_snapshots` and stores the most recent monitoring sample; it does not start a watch or force a new sample. The result includes the snapshot ID and target. Group IDs can be found in server summaries or `get_event_options`.
 
 API requests are not automatically retried. A lost connection after a mutation may leave its outcome uncertain; inspect xyOps before repeating it. Cancellation or shutdown does not undo accepted mutations or abort jobs already launched.
 
@@ -197,4 +221,4 @@ Both transports invoke the same modules. A tool can combine API calls, simplify 
 
 `npm run test:offline` includes schema, permission-boundary and wire-level STDIO/HTTP/HTTPS checks using fixtures. The TLS key in `test/fixtures/mcp/` is a public test fixture, never a deployment credential.
 
-`node test.js mcp` runs the live suite against `http://localhost:5522`. It requires administrator test credentials, an enabled category, the stock Shell Plugin and a connected worker. It creates disposable events/API keys, runs a harmless echo job, verifies restricted-key behavior over STDIO and concurrent HTTP requests, and cleans up its records.
+`node test.js mcp` runs the live suite against `http://localhost:5522`. It requires administrator test credentials, an enabled category, the stock Shell Plugin and a connected worker. It creates disposable events/API keys and a draft ticket, runs a harmless echo job, takes server/group snapshots, verifies restricted-key behavior over STDIO and concurrent HTTP requests, and cleans up its records. Monitoring tests require a worker in a group with a saved monitoring sample. The ticket remains a draft to suppress notifications; the suite deletes only snapshots it created and verifies their removal.

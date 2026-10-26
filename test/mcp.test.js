@@ -126,3 +126,87 @@ test('MCP live event/job lifecycle and API-key permissions', async t => {
 		if (errors.length) throw new AggregateError(errors, 'MCP fixture cleanup failed');
 	}
 });
+
+test('MCP live ticket and monitoring lifecycle', async t => {
+	loadTestConfig();
+	const subject = 'Disposable MCP Ticket ' + Date.now();
+	const snapshots = new Set();
+	let ticketID;
+	const client = stdioClient(t);
+	await client.initialize();
+	async function invoke(name, args) {
+		const reply = await client.call(name, args);
+		assert.ok(reply.result && !reply.result.isError, reply.result?.content?.[0]?.text || 'Tool failed: ' + name);
+		return reply.result.structuredContent;
+	}
+	
+	// Exact-ID searches return a not-found API error after deletion, rather
+	// than an empty search page. Keep that distinction in cleanup assertions.
+	async function verifyMissing(collection, id) {
+		const response = await require('@pixlcore/xyops-sdk').api['search_' + collection]({ query: '#id:' + id, limit: 1 });
+		assert.ok(response.err && response.data?.description?.includes(id) && /Not found/i.test(response.data.description), 'Disposable ' + collection + ' record was removed');
+	}
+	
+	// Preflight is read-only. The server needs one saved monitoring sample.
+	const servers = await invoke('list_servers', { limit: 1 });
+	const server = servers.rows[0];
+	assert.ok(server?.groups?.length, 'Live MCP monitoring test requires a connected worker in a group');
+	try {
+		// Keep the ticket in draft for its entire lifetime to suppress email.
+		const created = await invoke('create_ticket', { ticket: { subject, status: 'draft', body: 'Initial body', assignees: [], cc: [], notify: [] } });
+		ticketID = created.ticket.id;
+		assert.ok(ticketID);
+		assert.equal(created.ticket.status, 'draft');
+		await invoke('update_ticket', { id: ticketID, changes: { body: 'Updated body', server: server.id } });
+		const saved = (await call('get_ticket', { id: ticketID })).ticket;
+		assert.equal(saved.subject, subject);
+		assert.equal(saved.status, 'draft');
+		assert.equal(saved.body, 'Updated body');
+		assert.equal(saved.server, server.id);
+		const commented = await invoke('comment_ticket', { id: ticketID, body: 'MCP fixture comment' });
+		assert.equal(commented.comment.body, 'MCP fixture comment');
+		assert.ok(commented.comment.id && commented.comment.username);
+		assert.equal(commented.ticket.status, 'draft');
+		const history = (await call('get_ticket', { id: ticketID })).ticket.changes;
+		assert.equal(history.at(-1).id, commented.comment.id);
+		const removed = await invoke('delete_ticket', { id: ticketID });
+		assert.equal(removed.deleted, true);
+		const deletedID = ticketID;
+		ticketID = null;
+		await verifyMissing('tickets', deletedID);
+		
+		// Search existing alert history without triggering an alert or action.
+		const alerts = await invoke('search_alerts', { query: 'server:' + server.id, limit: 1 });
+		assert.ok(Array.isArray(alerts.rows) && alerts.rows.length <= 1);
+		assert.equal(typeof alerts.total, 'number');
+		for (const target of [{ server: server.id }, { group: server.groups[0] }]) {
+			const snapshot = await invoke('take_snapshot', target);
+			snapshots.add(snapshot.id);
+			assert.ok(snapshot.id);
+			const found = await invoke('search_snapshots', { query: '#id:' + snapshot.id, limit: 1 });
+			assert.equal(found.rows[0].id, snapshot.id);
+			assert.equal(found.rows[0].type, target.server ? 'server' : 'group');
+			assert.ok(!('snapshots' in found.rows[0]));
+			assert.ok(!('processes' in (found.rows[0].data || {})));
+		}
+	}
+	finally {
+		// Delete only returned IDs from this test and verify each removal.
+		const errors = [];
+		if (ticketID) {
+			try {
+				await call('delete_ticket', { id: ticketID });
+				await verifyMissing('tickets', ticketID);
+			}
+			catch (err) { errors.push(err); }
+		}
+		for (const id of snapshots) {
+			try {
+				await call('delete_snapshot', { id });
+				await verifyMissing('snapshots', id);
+			}
+			catch (err) { errors.push(err); }
+		}
+		if (errors.length) throw new AggregateError(errors, 'MCP ticket/snapshot fixture cleanup failed');
+	}
+});

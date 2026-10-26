@@ -28,7 +28,7 @@ test('HTTP serves both protocol generations, validates calls and rejects unautho
 	
 	for (const modern of [false, true]) {
 		const listing = await httpRPC(url, 'tools/list', {}, { headers, modern });
-		assert.equal(listing.result.tools.length, 5);
+		assert.equal(listing.result.tools.length, 8);
 		assert.ok(listing.result.tools.every(tool => tool.annotations.readOnlyHint));
 		const response = await httpRPC(url, 'tools/call', { name: 'get_event', arguments: { id: 'e1' } }, { headers, modern });
 		assert.equal(response.result.structuredContent.event.id, 'e1');
@@ -150,4 +150,39 @@ test('HTTP disconnect cancels the tool context before its next upstream call', a
 	request.destroy();
 	await Promise.race([cancellation, new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('Cancellation did not reach the tool')), 2000); timer.unref(); })]);
 	assert.equal(calls, 0);
+});
+
+test('new HTTP mutations use each client key and read-only mode rejects every write tool', async t => {
+	const calls = [];
+	const context = createContext({ update_ticket: async (params, options) => {
+		const key = options.headers['X-API-Key'];
+		calls.push({ key, params });
+		if (key === 'restricted-key') return { data: { code: 'access', description: 'Permission denied' } };
+		return { data: { code: 0, ticket: { id: params.id, status: params.status } } };
+	} }, { api_key: 'server-key' });
+	const service = await start(factory(tools, context), { ...configuration({}, {}), port: 0, log() {} });
+	t.after(() => service.close());
+	const url = 'http://127.0.0.1:' + service.address.port + '/mcp';
+	const replies = await Promise.all(['allowed-key', 'restricted-key'].map(key => httpRPC(url, 'tools/call', {
+		name: 'update_ticket', arguments: { id: 't1', changes: { status: 'closed' } }
+	}, { modern: true, headers: { Authorization: 'Bearer ' + key } })));
+	assert.equal(replies[0].result.structuredContent.ticket.status, 'closed');
+	assert.equal(replies[1].result.isError, true);
+	assert.match(replies[1].result.content[0].text, /Permission denied/);
+	assert.deepEqual(calls.map(call => call.key).sort(), ['allowed-key', 'restricted-key']);
+	
+	let forbiddenCalls = 0;
+	const readOnly = createContext(new Proxy({}, { get() { return async () => { forbiddenCalls++; throw new Error('Must not call the SDK'); }; } }), { read_only: true });
+	const readonlyService = await start(factory(tools, readOnly), { ...configuration({}, {}), port: 0, log() {} });
+	t.after(() => readonlyService.close());
+	const readonlyURL = 'http://127.0.0.1:' + readonlyService.address.port + '/mcp';
+	const headers = { Authorization: 'Bearer readonly-key' };
+	const listing = await httpRPC(readonlyURL, 'tools/list', {}, { headers });
+	assert.deepEqual(listing.result.tools.map(tool => tool.name).sort(), ['get_event', 'get_event_options', 'get_job', 'list_events', 'list_servers', 'search_alerts', 'search_jobs', 'search_snapshots']);
+	for (const tool of tools.values()) {
+		if (tool.description.annotations.readOnlyHint) continue;
+		const reply = await httpRPC(readonlyURL, 'tools/call', { name: tool.description.name, arguments: {} }, { headers });
+		assert.ok(reply.error || reply.result.isError, tool.description.name);
+	}
+	assert.equal(forbiddenCalls, 0);
 });

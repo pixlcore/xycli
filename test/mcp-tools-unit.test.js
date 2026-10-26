@@ -10,7 +10,7 @@ const tools = require('../lib/mcp/registry.js')();
 
 test('tool schemas reject unsafe or ambiguous mutation inputs', async () => {
 	const validate = (name, args) => tools.get(name).inputSchema['~standard'].validate(args);
-	assert.equal(tools.size, 9);
+	assert.equal(tools.size, 17);
 	assert.ok((await validate('create_event', { event: { title: 'Test', category: 'general', enabled: false } })).issues);
 	assert.ok((await validate('update_event', { id: 'test', changes: { title: 'New' } })).issues);
 	assert.ok((await validate('update_event', { id: 'test', revision: 0, changes: {} })).issues);
@@ -89,4 +89,124 @@ test('registry fails on duplicate names, invalid exports and invalid schemas', t
 	invalid.inputSchema.properties.id.type = 'not-a-json-type';
 	fs.writeFileSync(Path.join(directory, 'schema.js'), 'exports.run = async () => ({}); exports.describe = () => (' + JSON.stringify(invalid) + ');');
 	assert.throws(() => load(directory));
+});
+
+test('ticket and monitoring schemas reject ambiguous targets and protected metadata', async () => {
+	const validate = (name, args) => tools.get(name).inputSchema['~standard'].validate(args);
+	const invalid = [
+		['create_ticket', { ticket: { subject: '   ' } }],
+		['create_ticket', { ticket: { subject: 'Test', username: 'admin' } }],
+		['create_ticket', { ticket: { subject: 'Test', changes: [] } }],
+		['create_ticket', { ticket: { subject: 'Test', template: 'job', job: 'j1' } }],
+		['update_ticket', { id: 't1', changes: {} }],
+		['update_ticket', { id: 't1', changes: { id: 't2' } }],
+		['update_ticket', { id: 't1', changes: { due: 3600 } }],
+		['update_ticket', { id: 't1', changes: { assignees: 'admin' } }],
+		['comment_ticket', { id: 't1', body: ' ' }],
+		['comment_ticket', { id: 't1', body: 'Hello', username: 'admin' }],
+		['delete_ticket', { id: 'bad/id' }],
+		['take_snapshot', {}],
+		['take_snapshot', { server: 's1', group: 'main' }],
+		['take_snapshot', { server: '' }],
+		['search_alerts', { limit: 101 }],
+		['search_snapshots', { verbose: 'true' }],
+		['list_servers', { offset: -1 }]
+	];
+	for (const [name, args] of invalid) assert.ok((await validate(name, args)).issues, name + ': ' + JSON.stringify(args));
+	for (const [name, args] of [
+		['create_ticket', { ticket: { subject: 'Test', type: 'custom', status: 'custom' } }],
+		['update_ticket', { id: 't1', changes: { due: 0, server: '', category: '', assignees: [], tags: [] } }],
+		['update_ticket', { id: 't1', changes: { due: 1800000000 } }],
+		['take_snapshot', { server: 's1' }], ['take_snapshot', { group: 'main' }]
+	]) assert.ok(!(await validate(name, args)).issues, name + ': ' + JSON.stringify(args));
+});
+
+test('ticket mutations preserve partial updates and keep history out of summaries', async () => {
+	const requests = [];
+	const api = {};
+	for (const name of ['create_ticket', 'update_ticket', 'delete_ticket', 'add_ticket_change']) {
+		api[name] = async params => {
+			requests.push({ name, params });
+			return { data: { code: 0, ticket: { id: 't1', num: 1, subject: 'Test', body: 'Large body', changes: [{ body: 'Old history' }, { id: 'c1', type: 'comment', body: 'New comment', username: 'key1', date: 123 }] } } };
+		};
+	}
+	const context = createContext(api);
+	const created = await tools.get('create_ticket').run({ ticket: { subject: 'Test', body: 'Markdown' } }, context);
+	assert.equal(created.ticket.id, 't1');
+	assert.ok(!('body' in created.ticket) && !('changes' in created.ticket));
+	await tools.get('update_ticket').run({ id: 't1', changes: { tags: [], server: '', due: 0 } }, context);
+	assert.deepEqual(requests[1], { name: 'update_ticket', params: { id: 't1', tags: [], server: '', due: 0 } });
+	const comment = await tools.get('comment_ticket').run({ id: 't1', body: 'New comment' }, context);
+	assert.deepEqual(requests[2].params, { id: 't1', change: { type: 'comment', body: 'New comment' } });
+	assert.equal(comment.comment.id, 'c1');
+	assert.equal(comment.comment.username, 'key1');
+	assert.ok(!JSON.stringify(comment).includes('Old history'));
+	assert.deepEqual(await tools.get('delete_ticket').run({ id: 't1' }, context), { id: 't1', deleted: true });
+});
+
+test('monitoring reads preserve queries, bound pages and filter authorized server summaries', async () => {
+	const requests = [];
+	const api = {
+		get_active_servers: async () => ({ data: { code: 0, rows: [
+			{ id: 's3', hostname: 'WEB-3', groups: ['main'], enabled: false, socket_id: 'internal' },
+			{ id: 's2', hostname: 'web-2', groups: ['other'], enabled: false },
+			{ id: 's1', hostname: 'web-1', groups: ['main'], enabled: false },
+			{ id: 's4', hostname: 'web-4', groups: ['main'], enabled: true }
+		] } })
+	};
+	for (const name of ['search_alerts', 'search_snapshots']) api[name] = async params => {
+		requests.push({ name, params });
+		return { data: { code: 0, rows: [{ id: 'record1', data: { cpu: 42 } }], list: { length: 50 } } };
+	};
+	const context = createContext(api, { max_page_size: 2 });
+	const alerts = await tools.get('search_alerts').run({ query: 'active:true server:s1', offset: 4, limit: 10, sort_by: 'start', sort_dir: 1 }, context);
+	assert.deepEqual(requests[0].params, { query: 'active:true server:s1', offset: 4, limit: 2, sort_by: 'start', sort_dir: 1 });
+	assert.equal(alerts.total, 50);
+	assert.equal(alerts.limit, 2);
+	const snapshots = await tools.get('search_snapshots').run({}, context);
+	assert.deepEqual(requests[1].params, { query: '*', offset: 0, limit: 2, sort_by: '_id', sort_dir: -1, verbose: false });
+	assert.equal(snapshots.rows[0].data.cpu, 42);
+	await tools.get('search_snapshots').run({ verbose: true, limit: 1 }, context);
+	assert.equal(requests[2].params.verbose, true);
+	const servers = await tools.get('list_servers').run({ hostname: 'WeB', group: 'main', enabled: false, offset: 1, limit: 1 }, context);
+	assert.equal(servers.total, 2);
+	assert.equal(servers.rows[0].id, 's3');
+	assert.ok(!('socket_id' in servers.rows[0]));
+});
+
+test('all new write APIs enforce read-only, key scoping and uncertain outcomes', async () => {
+	const mutations = [
+		['create_ticket', { ticket: { subject: 'Test' } }, 'create_ticket'],
+		['update_ticket', { id: 't1', changes: { status: 'closed' } }, 'update_ticket'],
+		['delete_ticket', { id: 't1' }, 'delete_ticket'],
+		['comment_ticket', { id: 't1', body: 'Test' }, 'add_ticket_change'],
+		['take_snapshot', { server: 's1' }, 'create_snapshot'],
+		['take_snapshot', { group: 'main' }, 'create_group_snapshot']
+	];
+	for (const [name, args, method] of mutations) {
+		let calls = 0;
+		const api = { [method]: async (params, options) => {
+			calls++;
+			assert.equal(options.retries, 0);
+			assert.equal(options.headers['X-API-Key'], 'client-key');
+			return { err: 'lost connection client-key' };
+		} };
+		assert.equal(tools.get(name).description.annotations.readOnlyHint, false);
+		await assert.rejects(tools.get(name).run(args, createContext(api, { read_only: true })), /read-only/);
+		assert.equal(calls, 0);
+		const scoped = createContext(api, { api_key: 'server-key' }).withApiKey('client-key');
+		await assert.rejects(tools.get(name).run(args, scoped), error => /uncertain/.test(error.message) && !error.message.includes('client-key'));
+		assert.equal(calls, 1);
+		api[method] = async () => ({ data: { code: 'access', description: 'Permission denied' } });
+		await assert.rejects(tools.get(name).run(args, scoped), error => error.message === 'Permission denied');
+	}
+});
+
+test('take_snapshot dispatches server and group requests without starting watches', async () => {
+	const context = createContext({
+		create_snapshot: async params => { assert.deepEqual(params, { server: 's1' }); return { data: { code: 0, id: 'sn1' } }; },
+		create_group_snapshot: async params => { assert.deepEqual(params, { group: 'main' }); return { data: { code: 0, id: 'sn2' } }; }
+	});
+	assert.deepEqual(await tools.get('take_snapshot').run({ server: 's1' }, context), { id: 'sn1', type: 'server', server: 's1' });
+	assert.deepEqual(await tools.get('take_snapshot').run({ group: 'main' }, context), { id: 'sn2', type: 'group', group: 'main' });
 });
