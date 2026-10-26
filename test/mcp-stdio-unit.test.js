@@ -100,10 +100,19 @@ for (const { host, urlHost } of [{ host: '127.0.0.1', urlHost: '127.0.0.1' }, { 
 			name: 'get_event', arguments: { id }
 		}, { modern: !!index, headers: { Authorization: 'Bearer ' + id + '-key' } })));
 		assert.deepEqual(replies.map(reply => reply.result.structuredContent.event.id), ['first', 'second']);
-		client.child.kill('SIGTERM');
+		assert.equal(client.child.kill('SIGTERM'), true);
 		const [code, signal] = await client.exit;
-		assert.equal(code, 0);
-		assert.equal(signal, null);
+		if (process.platform === 'win32') {
+			// Windows force-terminates a child sent SIGTERM, without running its
+			// signal handler. Node reports signal termination, not exit code 0.
+			assert.equal(code, null);
+			assert.equal(signal, 'SIGTERM');
+		}
+		else {
+			// POSIX delivers SIGTERM to the CLI's graceful shutdown handler.
+			assert.equal(code, 0);
+			assert.equal(signal, null);
+		}
 		assert.deepEqual(client.lines, []);
 	});
 }

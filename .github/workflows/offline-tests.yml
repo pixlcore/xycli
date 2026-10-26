@@ -19,7 +19,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
         node:
-          - 20.19.0
+          - 22
           - 24
 
     steps:
