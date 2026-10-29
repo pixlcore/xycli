@@ -59,6 +59,7 @@ node --test test/config.test.js test/sync-buckets-unit.test.js test/sync-unit.te
 | `config` | Offline user-file updates, inherited-setting isolation, missing-file creation, dotted edits, permissions, and read-only display |
 | `events` | CRUD, dependency filters, nested edits, triggers, actions, limits, fields, validation, and help |
 | `jobs` | Event launch, parameter and input overrides, completed reports, output logs, search, rerun, deletion, validation, and help |
+| `jobs-follow-unit` | Offline live-follow retry chains, queued and already-completed retries, completed-job lookups, and stopping without a retry |
 | `log` | Log searches, latest rows, matching, column selection, native output |
 | `markdown` | Terminal rendering, inline formatting inside list items, typographic bullets, and output margins |
 | `monitors` | CRUD, groups, evaluator requests, type conversions, validation, help |

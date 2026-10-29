@@ -243,7 +243,7 @@ xy job JOB_ID
 xy job log JOB_ID --download ./job-output.log
 ```
 
-You can also rerun a previous job with `xy job run JOB_ID --follow`, or resume a workflow job where supported. Job reports bring together results, performance, output, files, and workflow details.
+You can also rerun a previous job with `xy job run JOB_ID --follow`, or resume a workflow job where supported. When a job you are following fails and is retried, the CLI automatically follows the retry, continuing until the job succeeds or no further retry is scheduled. Job reports bring together results, performance, output, files, and workflow details.
 
 - **Command reference:** [Job searches](docs/help.md#jobs) and [Job operations](docs/help.md#job).
 - **Learn more about xyOps:** [xyOps Events and job execution](https://docs.xyops.io/events) and [xyOps Job data](https://docs.xyops.io/data#job).
