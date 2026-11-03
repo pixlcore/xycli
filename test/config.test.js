@@ -32,7 +32,7 @@ function createConfigFixture(t, initial) {
 	
 	return {
 		file,
-		run(args) {
+		run(args, expected_status = 0) {
 			const env = {
 				...process.env,
 				HOME: home_dir,
@@ -58,8 +58,8 @@ function createConfigFixture(t, initial) {
 			// Keep captured CLI output out of assertion messages, since a config
 			// command may display settings inherited from the real system file.
 			assert.ifError(result.error);
-			assert.equal(result.status, 0, 'Config command should succeed');
-			return result.stdout;
+			assert.equal(result.status, expected_status, 'Config command should exit with the expected status');
+			return result.stdout + result.stderr;
 		},
 		read() { return JSON.parse(fs.readFileSync(file, 'utf8')); }
 	};
@@ -110,6 +110,65 @@ test('config creates a missing user file with only supplied settings', t => {
 	
 	assert.deepEqual(fixture.read(), { items_per_page: 25 });
 	assertPrivateMode(fixture.file);
+});
+
+test('config rejects misspelled keys without creating a file or exposing secrets', t => {
+	const fixture = createConfigFixture(t);
+	
+	for (const [key, suggestion] of [['base-url', 'base_url'], ['api-key', 'api_key'], ['items_per_pag', 'items_per_page']]) {
+		const output = fixture.run(['--' + key, 'private-fixture-value'], 1);
+		assert.ok(output.includes('Unknown configuration key "' + key + '".'));
+		assert.ok(output.includes('Did you mean "' + suggestion + '"?'));
+		assert.doesNotMatch(output, /private-fixture-value|Setting key:|Writing to:/);
+		assert.equal(fs.existsSync(fixture.file), false);
+	}
+});
+
+test('config rejects mixed valid and unknown updates without changing the user file', t => {
+	// Previously saved typos must not be accepted as supported config keys.
+	const fixture = createConfigFixture(t, { items_per_page: 10, 'api-key': 'old-value' });
+	const original = fs.readFileSync(fixture.file, 'utf8');
+	const output = fixture.run(['--items_per_page', '25', '--api-key', 'private-fixture-value'], 1);
+	
+	assert.match(output, /Unknown configuration key "api-key"/);
+	assert.doesNotMatch(output, /private-fixture-value|Setting key:|Writing to:/);
+	assert.equal(fs.readFileSync(fixture.file, 'utf8'), original);
+});
+
+test('config rejects unrelated keys and nested paths under scalar settings', t => {
+	const fixture = createConfigFixture(t);
+	
+	for (const key of ['unrelated_option', 'api_key.child', 'base_url/child']) {
+		const output = fixture.run(['--' + key, 'private-fixture-value'], 1);
+		assert.match(output, /Unknown configuration key/);
+		assert.doesNotMatch(output, /private-fixture-value|Setting key:|Writing to:/);
+		assert.equal(fs.existsSync(fixture.file), false);
+	}
+});
+
+test('config saves supported connection, SDK, MCP, and structured settings', t => {
+	const fixture = createConfigFixture(t);
+	const output = fixture.run([
+		'--base_url', 'https://saved.invalid', '--api_key', 'private-fixture-value',
+		'--timeout', '5000', '--mcp_port', '8080', '--mcp.read_only', 'true',
+		'--new_event_template/params/custom', 'value', '--raw', 'false'
+	]);
+	
+	assert.doesNotMatch(output, /private-fixture-value/);
+	assert.deepEqual(fixture.read(), {
+		base_url: 'https://saved.invalid', api_key: 'private-fixture-value',
+		timeout: 5000, mcp_port: 8080, mcp: { read_only: true },
+		new_event_template: { params: { custom: 'value' } }, raw: false
+	});
+	assertPrivateMode(fixture.file);
+});
+
+test('config ignores invocation flags when displaying and saving settings', t => {
+	const fixture = createConfigFixture(t);
+	fixture.run(['--quiet']);
+	assert.equal(fs.existsSync(fixture.file), false);
+	fixture.run(['--verbose', '--items_per_page', '25']);
+	assert.deepEqual(fixture.read(), { items_per_page: 25 });
 });
 
 test('config dotted updates preserve sibling user settings and explicit false or zero values', t => {

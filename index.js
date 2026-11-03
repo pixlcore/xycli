@@ -203,7 +203,8 @@ const app = {
 		delete args.format;
 		
 		this.raw = args.raw || this.config.raw || false;
-		delete args.raw;
+		// The config command saves --raw as a preference for future commands.
+		if (cmd != 'config') delete args.raw;
 		
 		this.dry = args.dry || false;
 		delete args.dry;

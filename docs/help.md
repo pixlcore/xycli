@@ -394,6 +394,8 @@ xy config --base_url http://localhost:5522 --api_key YOUR_API_KEY
 
 Updates load the user file separately and apply only the settings specified on the command line, preserving other user settings. System settings and environment overrides are not copied into the file. If the user file does not exist, it is created with only the supplied settings.
 
+Unknown top-level configuration keys are rejected before saving any changes, with a spelling suggestion when available. Use underscores in names such as `--base_url` and `--api_key`. Structured settings still support nested updates, such as `xy config --sync.down false` or `xy config --mcp.port 8080`.
+
 Configuration loads the machine file first, then the user file, then `XYOPS_`-prefixed environment variables. The machine and user files are `/etc/xyops/cli.json` and `~/.config/xyops/cli.json` on Unix and macOS, or `%PROGRAMDATA%\xyops\cli.json` and `%USERPROFILE%\.config\xyops\cli.json` on Windows. Later sources override matching top-level settings. Environment overrides still take precedence over saved user settings. Common keys include `api_key`, `base_url`, `temp_dir`, `color`, `suggest`, `items_per_page`, `cache_ttl`, `raw`, and `invisible`.
 
 Environment values that look like JSON objects or arrays are parsed automatically for any setting. For example, `XYOPS_SYNC='{"up":["events"],"down":false}'` supplies a structured `sync` setting. Boolean and numeric values keep their usual conversions. Malformed JSON-looking values report the environment variable name. Objects and arrays are serialized as JSON when the CLI exports its effective configuration back into the environment.
