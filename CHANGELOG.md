@@ -1,5 +1,13 @@
 # xyCLI Changelog
 
+## Version v1.2.2
+
+> November 2, 2026
+
+- [`660ba0a`](https://github.com/pixlcore/xycli/commit/660ba0afe7187d97313ca9bf9260a1db64a377cb): Version 1.2.2
+- [`b302242`](https://github.com/pixlcore/xycli/commit/b3022422a340e088f4bab89bbaece233addd94b3): Fix: Reject unsupported config keys with typo suggestions
+- [`b7973a9`](https://github.com/pixlcore/xycli/commit/b7973a9ad1cead3b746bd304feb3193abeb59b28): Meta: Add flag to force fresh pull of base docker image on GH actions build.
+
 ## Version v1.2.1
 
 > October 29, 2026
