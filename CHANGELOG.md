@@ -1,5 +1,13 @@
 # xyCLI Changelog
 
+## Version v1.2.3
+
+> November 5, 2026
+
+- [`e7da2e7`](https://github.com/pixlcore/xycli/commit/e7da2e7251d4a4834b569fe581cc4338ed9ecaf1): Version 1.2.3
+- [`48c1fca`](https://github.com/pixlcore/xycli/commit/48c1fcac6e1128f132a571eb915da66df7c6705e): Fix: Prevent a theoretically compromised xyOps server client config from infecting CLI sync config.
+- [`023129a`](https://github.com/pixlcore/xycli/commit/023129a91b7f2c64062bad3e5d4300d0f8c10d4b): Fix: Use secure JSON parsing at user trust boundaries.
+
 ## Version v1.2.2
 
 > November 2, 2026
