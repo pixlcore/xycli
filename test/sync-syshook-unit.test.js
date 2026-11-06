@@ -45,6 +45,27 @@ function markerCommand(name) {
 	return `${JSON.stringify(process.execPath)} -e ${JSON.stringify(code)}`;
 }
 
+test('syshook rejects forbidden payload and source properties before deleting files', t => {
+	for (const property of ['"__proto__":{"polluted":true}', '"constructor":{"prototype":{"polluted":true}}']) {
+		var dir = makeTree(t);
+		var target = writeSource(dir, 'Event.json', 'event', { id: 'evt_one' });
+		var payload = { xy: 1, action: 'event_delete', event: { id: 'evt_one' } };
+		// Native parsing here deliberately preserves the unsafe own property so
+		// runHook sends the exact attack text through the real STDIN reader.
+		var bad_payload = JSON.parse('{"xy":1,"action":"event_delete","event":{"id":"evt_one"},' + property + '}');
+		var result = runHook(dir, 'event_delete', bad_payload);
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /Invalid System Hook activity JSON: .*forbidden prototype property/);
+		assert.equal(fs.existsSync(target), true);
+		
+		fs.writeFileSync(target, '{"type":"xypdf","version":"1.0","items":[{"type":"event","data":{"id":"evt_one",' + property + '}}]}');
+		result = runHook(dir, 'event_delete', payload);
+		assert.equal(result.status, 1);
+		assert.match(result.stderr, /Failed to parse JSON file: .*forbidden prototype property/);
+		assert.equal(fs.existsSync(target), true);
+	}
+});
+
 test('syshook deletes only the exact Event and its owned neighbors', t => {
 	var dir = makeTree(t);
 	var event = writeSource(dir, 'events/Ops/Nightly.json', 'event', {

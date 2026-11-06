@@ -5,7 +5,8 @@
 var fs = require('fs');
 var Path = require('path');
 var cp = require('child_process');
-var Tools = require('pixl-tools');
+var cli = require('pixl-cli');
+var Tools = cli.Tools;
 
 var debug = (process.argv[2] == 'debug');
 

@@ -135,6 +135,32 @@ function getSetupMarkerCommand(filename) {
 	return `${JSON.stringify(process.execPath)} -e ${JSON.stringify(code)}`;
 }
 
+test('sync rejects forbidden JSON properties before updating managed objects', t => {
+	for (const property of ['"__proto__":{"polluted":true}', '"constructor":{"prototype":{"polluted":true}}']) {
+		const contents = '{"type":"xypdf","version":"1.0","items":[{"type":"category","data":{"id":"cat_one","title":"Unsafe",' + property + '}}]}';
+		const result = runSync(t, {
+			args: { up: 'categories' },
+			existingSources: [{ path: 'Unsafe.json', contents }],
+			categories: [{ id: 'cat_one', title: 'Original' }]
+		});
+		
+		assert.equal(result.status, 1);
+		assert.match(result.report.warnings.join('\n'), /forbidden prototype property/);
+		assert.deepEqual(result.report.calls, []);
+	}
+});
+
+test('sync still ignores unrelated null JSON after security scanning', t => {
+	const result = runSync(t, {
+		args: { up: 'categories' },
+		existingSources: [{ path: 'Unrelated.json', contents: 'null' }]
+	});
+	
+	assert.equal(result.status, 0);
+	assert.deepEqual(result.report.warnings, []);
+	assert.deepEqual(result.report.calls, []);
+});
+
 test('sync update guard requires confirmation only for the exact managed object', async () => {
 	var warnings = [];
 	var loads = 0;

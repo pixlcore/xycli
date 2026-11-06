@@ -286,7 +286,8 @@ const app = {
 			this.toast('⚠️', 'orange', bold("DRY RUN: ") + "No changes will actually be made.");
 		}
 		
-		// optionally read STDIN into a named arg (use curl @- convention)
+		// Parse user JSON securely before any argument objects can be merged.
+		// Optionally read STDIN into a named arg (use curl @- convention).
 		var stdin_arg_key = null;
 		for (var key in args) {
 			if (args[key] === '@-') { stdin_arg_key = key; break; }
@@ -299,7 +300,7 @@ const app = {
 			
 			// Some API parameters are opaque strings even when they look like JSON.
 			if (!JSON_ARG_EXCEPTIONS.includes(stdin_arg_key) && (args[stdin_arg_key].trim().match(/^\{[\s\S]*\}$/) || args[stdin_arg_key].trim().match(/^\[[\s\S]*\]$/))) {
-				try { args[stdin_arg_key] = JSON.parse(args[stdin_arg_key]); }
+				try { args[stdin_arg_key] = Tools.sjson.parse(args[stdin_arg_key]); }
 				catch (err) { this.die("Failed to parse JSON from STDIN: " + err); }
 			}
 		}
@@ -309,7 +310,7 @@ const app = {
 			if (String(args[key]).match(/^@(.+)$/)) {
 				var file = RegExp.$1;
 				if (!fs.existsSync(file)) this.die("File not found: " + file);
-				if (!JSON_ARG_EXCEPTIONS.includes(key) && file.match(/\.json$/i)) args[key] = JSON.parse( fs.readFileSync(file, 'utf8') );
+				if (!JSON_ARG_EXCEPTIONS.includes(key) && file.match(/\.json$/i)) args[key] = Tools.sjson.parse( fs.readFileSync(file, 'utf8') );
 				else args[key] = fs.readFileSync(file, 'utf8');
 			}
 		}
@@ -324,7 +325,7 @@ const app = {
 		// any arg value that looks like json will be parsed
 		for (var key in args) {
 			if (!JSON_ARG_EXCEPTIONS.includes(key) && args[key] && (typeof(args[key]) == 'string') && (args[key].trim().match(/^\{[\s\S]*\}$/) || args[key].trim().match(/^\[[\s\S]*\]$/))) {
-				try { args[key] = JSON.parse( args[key] ); }
+				try { args[key] = Tools.sjson.parse( args[key] ); }
 				catch (err) { this.die("Failed to parse JSON from argument: " + err); }
 			}
 		}
