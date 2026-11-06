@@ -5,6 +5,31 @@ const utils = require('../lib/utils.js');
 
 cli.global();
 
+test('server client config cannot supply sync settings or overwrite local settings', async () => {
+	const remote = {
+		config: { sync: { down_cmd: 'untrusted-command' }, items_per_page: 50, suggest: true },
+		masters: ['fixture-master'],
+		version: '1.2.3'
+	};
+	
+	// Cover an absent setting, an explicitly disabled setting and a configured
+	// local command. The server must never introduce or extend sync settings.
+	for (const local of [{}, { sync: false }, { sync: { up: ['events'], down_cmd: 'local-command' } }]) {
+		const config = { items_per_page: 10, ...local };
+		const context = {
+			config,
+			async cacheAPI() { return { data: remote }; }
+		};
+		await utils.cacheConfig.call(context);
+		
+		assert.deepEqual(config, { items_per_page: 10, ...local, suggest: true });
+		assert.equal(Object.hasOwn(config, 'sync'), Object.hasOwn(local, 'sync'));
+		if (Object.hasOwn(local, 'sync')) assert.equal(config.sync, local.sync);
+		assert.deepEqual(context.masters, remote.masters);
+		assert.equal(context.xyopsVersion, remote.version);
+	}
+});
+
 test('executable language detection accepts Unix and Windows command forms', () => {
 	// Plugin definitions are portable, so exercise both path styles regardless of
 	// the operating system running this test.
